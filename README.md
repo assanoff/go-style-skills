@@ -86,7 +86,9 @@ The report goes to `~/.go-style/reports/<module>/<time>-style-<guides>.md` with 
 repository; `GO_STYLE_HOME` moves the store. The working files of a run stay in
 `<module>/.go-style/runs/`, and `.go-style/` carries its own `.gitignore`, so it
 never shows up in `git status`. [go-audit](https://github.com/assanoff/cmd/tree/master/go-audit)
-lists the store (`go-audit reports`) and keeps its own reports there; its
+lists the store (`go-audit reports`), shows a report in the browser with its
+findings linked to the code (`go-audit show`, `go-audit web`) and keeps its own
+reports there; its
 [package doc](https://github.com/assanoff/cmd/blob/master/go-audit/doc.go)
 describes the layout and the JSON fields every report has.
 
