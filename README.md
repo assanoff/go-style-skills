@@ -1,5 +1,7 @@
 # go-style-skills
 
+[![validate](https://github.com/assanoff/go-style-skills/actions/workflows/validate.yml/badge.svg)](https://github.com/assanoff/go-style-skills/actions/workflows/validate.yml)
+
 Claude Code skills that review Go code against the canonical Go style guides —
 the Google Go Style Guide, Google Style Decisions, Google Best Practices,
 Effective Go and the Uber Go Style Guide. Every finding in the report links to
