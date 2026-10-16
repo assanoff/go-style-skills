@@ -1,0 +1,44 @@
+go-style-skills
+Copyright (c) 2026 Assanoff Rustam
+
+This project is licensed under the MIT License (see LICENSE), except for the
+third-party material described below, which remains under the license of its
+source.
+
+Third-party material
+--------------------
+
+The rule catalogs of the go-style skill (skills/go-style/rules/ in the go-style
+plugin; plugins/go-style/skills/go-style/rules/ in the repository) are adapted
+from the style guides listed below, and their _anchors.tsv files list the
+guides' section headings. The material has been changed: guide sections are
+split into separate rules, summarized and paraphrased, and extended with
+severities, linter mappings, review hints, exceptions and examples. The skill
+instructions and the documentation also name guide sections and quote short
+passages. Every rule links to the original section.
+
+The authors of these guides do not sponsor or endorse this project.
+
+1. Google Go Style Guide: Style Guide, Style Decisions, Best Practices
+   Source:     https://google.github.io/styleguide/go/
+               (https://github.com/google/styleguide, directory go/)
+   Author:     Google
+   License:    Creative Commons Attribution 3.0 Unported (CC BY 3.0)
+               https://creativecommons.org/licenses/by/3.0/
+   Adapted in: rules/google-guide/, rules/google-decisions/,
+               rules/google-practices/
+
+2. Effective Go
+   Source:     https://go.dev/doc/effective_go
+   Author:     The Go Authors
+   License:    Creative Commons Attribution 4.0 International (CC BY 4.0)
+               https://creativecommons.org/licenses/by/4.0/
+               (code on go.dev is under the Go BSD license,
+               https://go.dev/LICENSE)
+   Adapted in: rules/effective/
+
+3. Uber Go Style Guide
+   Source:     https://github.com/uber-go/guide/blob/master/style.md
+   Author:     Uber (https://github.com/uber-go)
+   License:    Apache License 2.0; full text in LICENSES/Apache-2.0.txt
+   Adapted in: rules/uber/
