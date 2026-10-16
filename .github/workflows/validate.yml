@@ -1,0 +1,67 @@
+name: validate
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  plugin:
+    name: plugin manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      # `claude plugin validate` needs no login or API key.
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+      - name: Validate the marketplace and the plugin
+        run: |
+          claude plugin validate . --strict
+          claude plugin validate plugins/go-style --strict
+      # Users get only plugins/go-style, so it carries copies of the legal files.
+      - name: Legal files in the plugin match the repository root
+        run: |
+          cmp LICENSE plugins/go-style/LICENSE
+          cmp NOTICE plugins/go-style/NOTICE
+          diff -r LICENSES plugins/go-style/LICENSES
+
+  scripts:
+    name: rule catalogs and unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Validate the rule catalogs
+        run: python3 plugins/go-style/skills/go-style/scripts/gostyle.py validate
+      - name: Unit tests of gostyle.py
+        run: python3 evals/test_gostyle.py
+      - name: Unit tests of score.py
+        run: python3 evals/test_score.py
+
+  fixture:
+    name: linter-only run on the eval fixture
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      # Pinned together: golangci-lint v2.14 is the first release with Go 1.27
+      # support, and the score thresholds hold for this exact linter version.
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.27"
+          cache-dependency-path: evals/fixture/go.sum
+      - name: Install golangci-lint
+        run: go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.14.0
+      - name: Verify the linter config
+        run: golangci-lint config verify --config plugins/go-style/skills/go-style/config/golangci.yml
+      - name: Score the fixture
+        run: tools/check-fixture
