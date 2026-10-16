@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-marketplace.json",
+  "name": "go-style-skills",
+  "owner": {
+    "name": "Assanoff Rustam",
+    "email": "assanoff@gmail.com"
+  },
+  "description": "Go code review against the canonical Go style guides — Google Go Style Guide, Style Decisions, Best Practices, Effective Go and the Uber Go Style Guide — with every finding linked to the guide section.",
+  "plugins": [
+    {
+      "name": "go-style",
+      "source": "./plugins/go-style",
+      "category": "development",
+      "tags": ["go", "golang", "code-review", "style-guide", "golangci-lint"]
+    }
+  ]
+}

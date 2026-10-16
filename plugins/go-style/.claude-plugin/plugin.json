@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "go-style",
+  "displayName": "Go Style Review",
+  "version": "0.1.0",
+  "description": "Review Go code against the Google Go Style Guide, Style Decisions, Best Practices, Effective Go and the Uber Go Style Guide. golangci-lint checks the mechanical rules, reviewer subagents the judgement rules; every finding links to the guide section it violates.",
+  "author": {
+    "name": "Assanoff Rustam",
+    "email": "assanoff@gmail.com"
+  },
+  "homepage": "https://github.com/assanoff/go-style-skills",
+  "repository": "https://github.com/assanoff/go-style-skills",
+  "license": "MIT",
+  "keywords": ["go", "golang", "code-review", "style-guide", "golangci-lint", "effective-go", "google-go-style", "uber-go-guide"]
+}
