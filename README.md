@@ -81,9 +81,16 @@ Run it from inside the Go module:
 | `--no-tests` | leave `_test.go` files out |
 | `--guides LIST` | `/go-style:go-style` only: a subset of `google-guide`, `google-decisions`, `google-practices`, `effective`, `uber` |
 
-The report goes to `<module>/.go-style/reports/<time>-<guides>.md` with a `.json`
-twin; `.go-style/` carries its own `.gitignore`, so it never shows up in
-`git status`. Claude answers with a summary: counts by severity, the top
+The report goes to `~/.go-style/reports/<module>/<time>-style-<guides>.md` with a
+`.json` twin: the reports of all your modules in one place and none in the
+repository; `GO_STYLE_HOME` moves the store. The working files of a run stay in
+`<module>/.go-style/runs/`, and `.go-style/` carries its own `.gitignore`, so it
+never shows up in `git status`. [go-audit](https://github.com/assanoff/cmd/tree/master/go-audit)
+lists the store (`go-audit reports`) and keeps its own reports there; its
+[package doc](https://github.com/assanoff/cmd/blob/master/go-audit/doc.go)
+describes the layout and the JSON fields every report has.
+
+Claude answers with a summary: counts by severity, the top
 findings with their guide links, and what limited the run. The skills never
 change your code; fix what you choose after reading the report.
 
@@ -136,7 +143,7 @@ subagents). The part that works anywhere is the linter-only run of the script:
 ```bash
 G=path/to/plugins/go-style/skills/go-style/scripts/gostyle.py
 python3 $G prepare --guides all --no-llm    # inside the Go module
-python3 $G report                           # report of the latest run
+python3 $G report                           # report of the latest run, into the store
 ```
 
 ## Layout

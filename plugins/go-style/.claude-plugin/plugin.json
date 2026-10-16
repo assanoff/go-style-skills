@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "go-style",
   "displayName": "Go Style Review",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Review Go code against the Google Go Style Guide, Style Decisions, Best Practices, Effective Go and the Uber Go Style Guide. golangci-lint checks the mechanical rules, reviewer subagents the judgement rules; every finding links to the guide section it violates.",
   "author": {
     "name": "Assanoff Rustam",

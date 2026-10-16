@@ -7,7 +7,7 @@
       "name": "decisions-full-module",
       "skill": "go-style-decisions",
       "prompt": "Проверь этот Go-модуль на соответствие Google Go Style Decisions и дай отчёт со ссылками на разделы гайда.",
-      "expected_output": "Report under .go-style/reports with findings linked to google-decisions sections; recall of the google-decisions items in expected.json; no findings on the negative items.",
+      "expected_output": "Report in the store, $GO_STYLE_HOME/reports/example.com/inventory/ (~/.go-style without GO_STYLE_HOME), with findings linked to google-decisions sections; recall of the google-decisions items in expected.json; no findings on the negative items.",
       "files": ["fixture/"]
     },
     {

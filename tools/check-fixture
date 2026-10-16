@@ -22,8 +22,10 @@ work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 cp -R "$root/evals/fixture" "$work/fixture"
 cd "$work/fixture"
+# The report goes to a store of its own, not to the one in the home directory.
+export GO_STYLE_HOME="$work/store"
 
 python3 "$engine/scripts/gostyle.py" prepare --guides all --no-llm
 python3 "$engine/scripts/gostyle.py" report
-python3 "$root/evals/score.py" .go-style/reports/*.json --expected "$root/evals/expected.json" \
-    --min-lint-recall 0.97 --max-unexpected 0 "$@"
+python3 "$root/evals/score.py" "$GO_STYLE_HOME"/reports/example.com/inventory/*.json \
+    --expected "$root/evals/expected.json" --min-lint-recall 0.97 --max-unexpected 0 "$@"

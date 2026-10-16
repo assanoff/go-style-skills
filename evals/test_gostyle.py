@@ -4,12 +4,18 @@
     python3 evals/test_gostyle.py
 """
 
+import argparse
+import contextlib
+import datetime as dt
 import importlib.util
+import io
 import json
+import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 sys.dont_write_bytecode = True  # keep __pycache__ out of the plugin directory
 HERE = Path(__file__).resolve().parent
@@ -163,6 +169,121 @@ class Diff(unittest.TestCase):
         finally:
             gs.git = orig
         self.assertEqual(got, {"x.go": [(11, 13), (23, 23)]})
+
+
+class Store(unittest.TestCase):
+    """The report store is shared with go-audit, which lists it; these tests
+    pin down the side of the contract written here."""
+
+    def test_escape_module(self):
+        for path, want in [("github.com/assanoff/cmd/ai", "github.com/assanoff/cmd/ai"),
+                           ("github.com/BurntSushi/toml", "github.com/!burnt!sushi/toml"),
+                           ("myapp", "myapp"), ("MyCompany/billing", "!my!company/billing"),
+                           ("example.com/v1", "example.com/v1")]:
+            self.assertEqual(gs.escape_module(path), want)
+        for path in ["", "not a path", "../x", "a/../b", "a//b", "/abs", "a!b", "a.",
+                     "модуль"]:
+            with self.assertRaises(ValueError, msg=path):
+                gs.escape_module(path)
+
+    def test_store_dir(self):
+        with tempfile.TemporaryDirectory() as d, \
+                mock.patch.dict(os.environ, {"GO_STYLE_HOME": d}):
+            self.assertEqual(gs.store_dir(), Path(d))
+        with mock.patch.dict(os.environ, {"GO_STYLE_HOME": ""}):
+            self.assertEqual(gs.store_dir(), Path.home() / ".go-style")
+
+    def test_second_report_in_one_second(self):
+        with tempfile.TemporaryDirectory() as d:
+            first = gs.report_path(Path(d), "example.com/inventory", "all", "20261016-141945")
+            self.assertEqual(first, Path(d, "reports", "example.com", "inventory",
+                                         "20261016-141945-style-all.md"))
+            first.parent.mkdir(parents=True)
+            first.write_text("# report\n")
+            second = gs.report_path(Path(d), "example.com/inventory", "all", "20261016-141945")
+            self.assertEqual(second.name, "20261016-141945-style-all-2.md")
+
+    def fake_run(self, d: Path) -> Path:
+        """Writes a run as prepare leaves it after one reviewer task with one
+        finding, linters skipped; returns its directory."""
+        root = d / "src"
+        root.mkdir()
+        (root / "a.go").write_text("package a\n\nfunc (store *Store) Put() {}\n")
+        r = next(r for r in gs.load_rules(["google-decisions"]) if r.severity == "should")
+        run_dir = d / "src" / ".go-style" / "runs" / "20261016-140440-google-decisions"
+        (run_dir / "findings").mkdir(parents=True)
+        (run_dir / "rules.json").write_text(json.dumps([r.summary()]))
+        (run_dir / "findings" / "all01.jsonl").write_text(json.dumps(
+            {"rule": r.id, "file": "a.go", "line": 3, "message": "m",
+             "snippet": "func (store *Store) Put("}) + "\n")
+        (run_dir / "run.json").write_text(json.dumps({
+            "run_id": run_dir.name, "run_dir": str(run_dir), "root": str(root),
+            "module": "example.com/MyApp", "guides": ["google-decisions"], "mode": "full",
+            "base": None, "targets": ["./..."], "whole_files": False, "changes": {},
+            "lint": {"status": "skipped"}, "build_errors": [], "package_errors": [],
+            "generated_skipped": 0, "files": 1, "lines": 3, "lint_mapped": 0,
+            "lint_other_guides": {}, "lint_other_total": 0, "dropped_rules": [],
+            "outline_error": None, "commit": "",
+            "tasks": [{"id": "all01", "kind": "all",
+                       "output": str(run_dir / "findings" / "all01.jsonl")}]}))
+        return run_dir
+
+    def report(self, run_dir: Path, output=None) -> str:
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            gs.cmd_report(argparse.Namespace(run=str(run_dir), output=output))
+        return out.getvalue()
+
+    def test_report_goes_to_the_store(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d).resolve()
+            run_dir = self.fake_run(d)
+            store = d / "store"
+            before = dt.datetime.now().astimezone().replace(microsecond=0)
+            with mock.patch.dict(os.environ, {"GO_STYLE_HOME": str(store)}):
+                self.report(run_dir)
+            reports = sorted((store / "reports" / "example.com" / "!my!app").iterdir())
+            self.assertEqual([p.suffix for p in reports], [".json", ".md"])
+            self.assertRegex(reports[0].name, r"^\d{8}-\d{6}-style-google-decisions\.json$")
+            rep = json.loads(reports[0].read_text())
+            when = dt.datetime.fromisoformat(rep.pop("time"))
+            self.assertIsNotNone(when.tzinfo, "time without a UTC offset")
+            self.assertGreaterEqual(when, before)
+            self.assertEqual(reports[0].name[:15], when.strftime("%Y%m%d-%H%M%S"))
+            self.assertEqual({k: rep[k] for k in
+                              ("format", "kind", "module", "root", "label", "total", "summary")},
+                             {"format": 1, "kind": "style", "module": "example.com/MyApp",
+                              "root": str(d / "src"), "label": "google-decisions", "total": 1,
+                              "summary": "must 0 · should 1 · consider 0 · review 1/1 · "
+                                         "linters skipped"})
+            # The fields of a style report stay, for score.py among others.
+            self.assertEqual(rep["guides"], ["google-decisions"])
+            self.assertEqual(len(rep["findings"]), 1)
+            # Runs stay in the module.
+            self.assertFalse((d / "src" / ".go-style" / "reports").exists())
+
+    def test_output_wins(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            run_dir = self.fake_run(d)
+            store = d / "store"
+            with mock.patch.dict(os.environ, {"GO_STYLE_HOME": str(store)}):
+                self.report(run_dir, output=str(d / "out" / "r.md"))
+            self.assertTrue((d / "out" / "r.md").exists())
+            self.assertEqual(json.loads((d / "out" / "r.json").read_text())["kind"], "style")
+            self.assertFalse(store.exists())
+
+    def test_store_not_writable(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            run_dir = self.fake_run(d)
+            (d / "file").write_text("")  # a store that is a file
+            err = io.StringIO()
+            with mock.patch.dict(os.environ, {"GO_STYLE_HOME": str(d / "file")}), \
+                    contextlib.redirect_stderr(err), self.assertRaises(SystemExit):
+                self.report(run_dir)
+            self.assertIn("cannot write the report", err.getvalue())
+            self.assertIn("--output", err.getvalue())
 
 
 class Catalogs(unittest.TestCase):

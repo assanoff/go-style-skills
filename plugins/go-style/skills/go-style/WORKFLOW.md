@@ -90,10 +90,15 @@ python3 "$ENGINE/scripts/gostyle.py" report --run <run-dir printed by prepare>
 
 It verifies each reviewer finding against the source — the quoted snippet must
 be on the reported line — folds duplicates (the same problem from two linters,
-or from several guides), applies the guide priority, writes
-`<module>/.go-style/reports/<timestamp>-<label>.md` plus a `.json` twin, and
-prints a summary: counts, a health line (linters, build, review tasks, issues
+or from several guides), applies the guide priority, writes the report into
+the store in the home directory — `~/.go-style/reports/<module>/<timestamp>-style-<label>.md`
+plus a `.json` twin, `$GO_STYLE_HOME` in place of `~/.go-style` when it is set —
+and prints a summary: counts, a health line (linters, build, review tasks, issues
 under other guides, git) and a ranked list of top findings for your answer.
+
+If the store cannot be written (a sandbox that allows writes only in the
+project), the script says so: run report again with
+`--output <module root>/.go-style/report.md` and tell the user where it went.
 
 ## 5. Answer the user
 
@@ -126,7 +131,7 @@ the user asks for after reading the report.
 ## Notes
 
 - `.go-style/` is created in the module root with a `.gitignore` of `*`, so runs
-  and reports never show up in `git status`.
+  never show up in `git status`; reports are kept in the store, not there.
 - Rule catalogs: `$ENGINE/rules/<guide>/*.md` (format: `rules/FORMAT.md`);
   linter config: `$ENGINE/config/golangci.yml`; reviewer template:
   `$ENGINE/agents/reviewer.md`.

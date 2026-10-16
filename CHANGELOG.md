@@ -5,6 +5,23 @@ Notable changes of the `go-style` plugin. The version is the one in
 [Semantic Versioning](https://semver.org/); the format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.2.0] - 2026-10-16
+
+### Changed
+
+- The report goes to a store in the home directory, shared with
+  [go-audit](https://github.com/assanoff/cmd/tree/master/go-audit):
+  `~/.go-style/reports/<module>/<time>-style-<guides>.md` and its `.json` twin;
+  `GO_STYLE_HOME` moves the store, `report --output` still wins. The working
+  files of a run stay in `<module>/.go-style/runs/`. Reports of 0.1.0 in
+  `<module>/.go-style/reports/` are left where they are.
+
+### Added
+
+- Fields every report in the store has, at the top of the `.json` twin:
+  `format`, `kind`, `module`, `root`, `time`, `label`, `total`, `summary`;
+  `go-audit reports` lists reports by them. The fields of 0.1.0 stay.
+
 ## [0.1.0] - 2026-10-16
 
 First release as a Claude Code plugin; before, the skills lived in a dotfiles

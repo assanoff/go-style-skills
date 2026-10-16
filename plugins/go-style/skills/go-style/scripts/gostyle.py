@@ -10,7 +10,8 @@ second:
             declaration outline, the rule bundles and one task file per
             reviewer subagent
   report    merge linter issues and reviewer findings, verify every location,
-            drop duplicates, apply the guide priority, render the report
+            drop duplicates, apply the guide priority, render the report into
+            the report store shared with go-audit
   validate  check the rule catalogs (for maintainers)
   coverage  print the coverage matrix of the catalogs as Markdown
 
@@ -82,6 +83,14 @@ CHUNK_LINES = 2500            # source lines per reviewer task
 BUNDLE_SPLIT_CHARS = 70_000   # split a rule bundle above this size
 TASK_BUNDLE_CHARS = 90_000    # rules one small-scope task may read (~22k tokens)
 OUTLINE_PART_CHARS = 110_000  # split the outline above this size
+
+# The report store, shared with go-audit, which lists it: reports of all modules
+# in the home directory. Its layout and the fields every report's .json twin
+# has are described in
+# https://github.com/assanoff/cmd/blob/master/go-audit/doc.go.
+STORE_FORMAT = 1  # the version of those fields
+# An element of a module path the store takes: what an import path may hold.
+MODULE_ELEM = re.compile(r"[A-Za-z0-9._~+-]+")
 
 
 def die(msg: str) -> None:
@@ -329,6 +338,35 @@ def module_root(start: Path) -> tuple[Path, str]:
             path = line.split()[1].strip('"')
             break
     return root, path
+
+
+def store_dir() -> Path:
+    """The report store: $GO_STYLE_HOME, or .go-style in the home directory."""
+    env = os.environ.get("GO_STYLE_HOME")
+    return Path(os.path.abspath(env)) if env else Path.home() / ".go-style"
+
+
+def escape_module(path: str) -> str:
+    """Returns module path as a directory of the store. Each capital letter
+    becomes "!" and the lower-case letter, as in the module cache, so that Foo
+    and foo stay apart on a case-insensitive file system. Raises ValueError for
+    a path no main module may have, such as one with a ".." element."""
+    for elem in path.split("/"):
+        if not MODULE_ELEM.fullmatch(elem) or not elem.strip(".") or elem.endswith("."):
+            raise ValueError(f"malformed module path {path!r}")
+    return re.sub(r"[A-Z]", lambda m: "!" + m.group().lower(), path)
+
+
+def report_path(store: Path, module: str, label: str, stamp: str) -> Path:
+    """Returns the path of a new style report of module in the store; a second
+    report in the same second gets -2, as runs do."""
+    folder = store / "reports" / Path(*escape_module(module).split("/"))
+    out = folder / f"{stamp}-style-{label}.md"
+    n = 1
+    while out.exists() or out.with_suffix(".json").exists():
+        n += 1
+        out = folder / f"{stamp}-style-{label}-{n}.md"
+    return out
 
 
 def go_list(cwd: Path, patterns: list[str]) -> list[dict]:
@@ -775,8 +813,7 @@ def cmd_prepare(args) -> None:
         die("no Go files in scope" + (" (no changed .go files)" if mode == "diff" else ""))
 
     stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
-    label = guides[0] if len(guides) == 1 else "all" if len(guides) == len(GUIDES) \
-        else "+".join(guides)
+    label = guides_label(guides)
     base_dir = Path(args.out).resolve() if args.out else root / ".go-style"
     base_dir.mkdir(parents=True, exist_ok=True)
     gi = base_dir / ".gitignore"
@@ -943,6 +980,13 @@ def head_commit(root: Path) -> str:
         return ""
     dirty = git(root, "status", "--porcelain", "--untracked-files=no")
     return sha.strip() + (" (+uncommitted changes)" if dirty and dirty.strip() else "")
+
+
+def guides_label(guides: list[str]) -> str:
+    """Names the guides of a run in its directory and in its report."""
+    if len(guides) == len(GUIDES):
+        return "all"
+    return "+".join(guides)
 
 
 def parse_guides(value: str) -> list[str]:
@@ -1146,15 +1190,25 @@ def cmd_report(args) -> None:
     verified = [f for f in findings if f.verified]
     unverified = [f for f in findings if not f.verified]
 
-    stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
-    label = run["run_id"].split("-", 2)[-1]
-    out = Path(args.output).resolve() if args.output else \
-        Path(run_dir).parent.parent / "reports" / f"{stamp}-{label}.md"
-    out.parent.mkdir(parents=True, exist_ok=True)
+    now = dt.datetime.now().astimezone()
+    label = guides_label(guides)
+    if args.output:
+        out = Path(args.output).resolve()
+    else:
+        try:
+            out = report_path(store_dir(), run["module"], label,
+                              now.strftime("%Y%m%d-%H%M%S"))
+        except ValueError as e:
+            die(f"{e}: no place for the report in the store; pass --output")
     text = render_report(run, rules, verified, unverified, skipped, rejected)
-    out.write_text(text, encoding="utf-8")
     js = out.with_suffix(".json")
-    js.write_text(json.dumps({
+    data = json.dumps({
+        # The fields every report in the store has, for go-audit reports.
+        "format": STORE_FORMAT, "kind": "style", "module": run["module"],
+        "root": run["root"], "time": now.isoformat(timespec="seconds"),
+        "label": label, "total": len(verified),
+        "summary": report_summary(run, verified),
+        # The fields of a style report.
         "run": run["run_id"], "guides": guides, "mode": run["mode"],
         "health": run_health(run),
         "dropped_rules": sorted(run["dropped_rules"]),
@@ -1162,8 +1216,32 @@ def cmd_report(args) -> None:
                           title=rules[f.rule]["title"]) for f in findings],
         "skipped": [dict(dataclasses.asdict(f), contradicts=w) for f, w in skipped],
         "other_guides": load_other_issues(run_dir) if not multi else [],
-    }, indent=1), encoding="utf-8")
+    }, indent=1)
+    try:
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(text, encoding="utf-8")
+        js.write_text(data, encoding="utf-8")
+    except OSError as e:
+        die(f"cannot write the report to {out.parent}: {e.strerror or e}; "
+            "set GO_STYLE_HOME to a writable directory or pass --output")
     print_report_summary(run, rules, verified, unverified, skipped, rejected, out)
+
+
+def report_summary(run: dict, findings: list[Finding]) -> str:
+    """The line of the report in go-audit reports: findings by severity, then
+    what limits them."""
+    sev = collections.Counter(f.severity for f in findings)
+    parts = [f"{s} {sev.get(s, 0)}" for s in SEVERITIES]
+    h = run_health(run)
+    if h["tasks"]:
+        parts.append(f"review {h['tasks'] - len(h['tasks_without_output'])}/{h['tasks']}")
+    if h["lint"] != "ok":
+        parts.append(f"linters {h['lint']}")
+    if h["build_errors"]:
+        parts.append(f"{h['build_errors']} type-check errors")
+    if run["mode"] == "diff":
+        parts.append("diff")
+    return " · ".join(parts)
 
 
 def load_other_issues(run_dir: Path) -> list[dict]:
@@ -1744,8 +1822,8 @@ def main() -> None:
 
     p = sub.add_parser("report", help="merge findings and render the report")
     p.add_argument("--run", help="run directory (default: the latest run)")
-    p.add_argument("--output", help="report path (default: reports/ next to the run's "
-                   "runs/ directory, i.e. <module>/.go-style/reports/ unless prepare had --out)")
+    p.add_argument("--output", help="report path (default: the store, "
+                   "$GO_STYLE_HOME/reports/<module>/, ~/.go-style without GO_STYLE_HOME)")
     p.set_defaults(func=cmd_report)
 
     p = sub.add_parser("validate", help="check the rule catalogs")
