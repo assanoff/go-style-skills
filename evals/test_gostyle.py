@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Unit tests for the deterministic parts of go-style/scripts/gostyle.py.
 
-    python3 skills/evals/test_gostyle.py
+    python3 evals/test_gostyle.py
 """
 
 import importlib.util
@@ -11,9 +11,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
-sys.dont_write_bytecode = True  # keep __pycache__ out of the deployed skill directory
+sys.dont_write_bytecode = True  # keep __pycache__ out of the plugin directory
 HERE = Path(__file__).resolve().parent
-SPEC = importlib.util.spec_from_file_location("gostyle", HERE.parent / "go-style" / "scripts" / "gostyle.py")
+ENGINE = HERE.parent / "plugins" / "go-style" / "skills" / "go-style"
+SPEC = importlib.util.spec_from_file_location("gostyle", ENGINE / "scripts" / "gostyle.py")
 gs = importlib.util.module_from_spec(SPEC)
 sys.modules["gostyle"] = gs  # dataclasses on Python 3.9 look the module up here
 SPEC.loader.exec_module(gs)

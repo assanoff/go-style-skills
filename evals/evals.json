@@ -1,6 +1,6 @@
 {
   "skill_name": "go-style",
-  "notes": "Each eval runs on a fresh copy of evals/fixture (a Go module with seeded problems, see expected.json). Score a run with: python3 skills/evals/score.py <report>.json",
+  "notes": "Each eval runs on a fresh copy of evals/fixture (a Go module with seeded problems, see expected.json). Score a run with: python3 evals/score.py <report>.json",
   "evals": [
     {
       "id": 1,

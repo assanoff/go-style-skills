@@ -23,7 +23,7 @@ A rule gets an analyzer only when all of these hold:
    enough, to justify code plus tests.
 
 The catalogs tag 111 candidate checks with `custom=<slug>` (list:
-`python3 skills/go-style/scripts/gostyle.py coverage`). The curated set below
+`python3 plugins/go-style/skills/go-style/scripts/gostyle.py coverage`). The curated set below
 merges overlapping slugs, drops those an existing linter already covers, and
 leaves the heuristic ones to the reviewer.
 

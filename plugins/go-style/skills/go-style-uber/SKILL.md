@@ -1,7 +1,7 @@
 ---
 name: go-style-uber
 description: Review Go code against the Uber Go Style Guide (github.com/uber-go/guide): interfaces, mutexes, copying at boundaries, channel sizes, enums, time, errors (types, wrapping, handle once), globals, init, exit, goroutines, performance, style and patterns (table tests, functional options). golangci-lint plus reviewer subagents; each finding links to the Uber section, and advice that contradicts Google's guides is flagged. Use when the user asks to check Go code against Uber's guide, or runs /go-style-uber.
-compatibility: Needs the go-style skill (shared engine) in the same skills directory, plus go, python3 and golangci-lint v2.
+compatibility: Needs the go-style skill (the shared engine) in the same skills directory — the go-style plugin ships both — plus go, python3 and golangci-lint v2.
 argument-hint: "[./... | dirs | files] [--diff [base]] [--no-llm] [--no-tests]"
 ---
 

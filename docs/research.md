@@ -1,6 +1,6 @@
 # Automating Go style review: research and design
 
-This is the reasoning behind `skills/go-style*`: what the five guides ask for,
+This is the reasoning behind the go-style skills (`plugins/go-style/skills/`): what the five guides ask for,
 which part of it existing tools already check, what is left, and how the skills
 cover the rest efficiently. The coverage numbers are in
 [coverage.md](coverage.md) (generated from the rule catalogs); the plan for new
@@ -191,7 +191,7 @@ Uber report flags the finding as optional:
 
 ## 5. Evaluation
 
-`skills/evals/fixture` is a small module (store, notifier, util package, main;
+`evals/fixture` is a small module (store, notifier, util package, main;
 414 lines) with seeded problems across the guides; `expected.json` lists them
 (rule ids that count as a hit, a line, `optional` for debatable ones) and
 `score.py` computes recall per guide from a report's JSON twin and lists every

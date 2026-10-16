@@ -2,15 +2,16 @@
 # refresh-anchors — re-download the five style guides, regenerate the anchor
 # tables of the rule catalogs, show what changed and validate the catalogs.
 #
-#   skills/tools/refresh-anchors          update the _anchors.tsv files
-#   skills/tools/refresh-anchors --dry    only show the differences
+#   tools/refresh-anchors          update the _anchors.tsv files
+#   tools/refresh-anchors --dry    only show the differences
 #
 # A removed or renamed anchor makes `gostyle.py validate` fail for every rule
 # that links to it — that is the list of rules to re-read against the guide.
 set -u
 
 here="$(cd "$(dirname "$0")" && pwd)"
-rules="$here/../go-style/rules"
+engine="$here/../plugins/go-style/skills/go-style"
+rules="$engine/rules"
 dry=0
 [ "${1:-}" = "--dry" ] && dry=1
 
@@ -48,4 +49,4 @@ effective          effective  effective.html
 EOF
 
 [ "$dry" = 1 ] && exit 0
-python3 "$here/../go-style/scripts/gostyle.py" validate
+python3 "$engine/scripts/gostyle.py" validate

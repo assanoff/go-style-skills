@@ -1,7 +1,7 @@
 ---
 name: go-style-guide
 description: Review Go code against the core Google Go Style Guide (google.github.io/styleguide/go/guide): the canonical principles (clarity, simplicity, least mechanism, concision, maintainability, consistency) and core guidelines (formatting, MixedCaps, line length, naming). Finds hard-to-follow, over-engineered or inconsistent code and links each finding to the guide. Use for a principles-level Go readability review by Google's guide, or /go-style-guide.
-compatibility: Needs the go-style skill (shared engine) in the same skills directory, plus go, python3 and golangci-lint v2.
+compatibility: Needs the go-style skill (the shared engine) in the same skills directory — the go-style plugin ships both — plus go, python3 and golangci-lint v2.
 argument-hint: "[./... | dirs | files] [--diff [base]] [--no-llm] [--no-tests]"
 ---
 

@@ -1,7 +1,7 @@
 ---
 name: go-style-effective
 description: Review Go code against Effective Go (go.dev/doc/effective_go): names (getters, -er interfaces, MixedCaps), control flow, multiple returns and defer, new vs make, composite literals, methods, interfaces and type assertions, the blank identifier, embedding, concurrency, errors, panic and recover. golangci-lint plus reviewer subagents; every finding links to the Effective Go section. Use when the user asks whether Go code is idiomatic per Effective Go, or runs /go-style-effective.
-compatibility: Needs the go-style skill (shared engine) in the same skills directory, plus go, python3 and golangci-lint v2.
+compatibility: Needs the go-style skill (the shared engine) in the same skills directory — the go-style plugin ships both — plus go, python3 and golangci-lint v2.
 argument-hint: "[./... | dirs | files] [--diff [base]] [--no-llm] [--no-tests]"
 ---
 
