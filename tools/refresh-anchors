@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+# refresh-anchors — re-download the five style guides, regenerate the anchor
+# tables of the rule catalogs, show what changed and validate the catalogs.
+#
+#   skills/tools/refresh-anchors          update the _anchors.tsv files
+#   skills/tools/refresh-anchors --dry    only show the differences
+#
+# A removed or renamed anchor makes `gostyle.py validate` fail for every rule
+# that links to it — that is the list of rules to re-read against the guide.
+set -u
+
+here="$(cd "$(dirname "$0")" && pwd)"
+rules="$here/../go-style/rules"
+dry=0
+[ "${1:-}" = "--dry" ] && dry=1
+
+src="$(mktemp -d)"
+trap 'rm -rf "$src"' EXIT
+
+fetch() {  # fetch <url> <file>
+    curl -fsSL -o "$src/$2" "$1" || { echo "refresh-anchors: cannot fetch $1" >&2; exit 1; }
+}
+g=https://raw.githubusercontent.com/google/styleguide/gh-pages/go
+fetch "$g/guide.md" guide.md
+fetch "$g/decisions.md" decisions.md
+fetch "$g/best-practices.md" best-practices.md
+fetch https://raw.githubusercontent.com/uber-go/guide/master/style.md uber.md
+fetch https://raw.githubusercontent.com/golang/website/master/_content/doc/effective_go.html effective.html
+
+# guide dir   extractor   source
+while read -r dir kind file; do
+    new="$src/$dir.tsv"
+    python3 -I "$here/anchors.py" "$kind" "$src/$file" > "$new"
+    old="$rules/$dir/_anchors.tsv"
+    if diff -q <(cut -f1-3 "$old") <(cut -f1-3 "$new") >/dev/null; then
+        echo "$dir: no heading changes"
+    else
+        echo "$dir: headings changed:"
+        diff <(cut -f1-3 "$old") <(cut -f1-3 "$new") | sed 's/^/    /'
+    fi
+    [ "$dry" = 1 ] || cp "$new" "$old"
+done <<'EOF'
+google-guide       google     guide.md
+google-decisions   google     decisions.md
+google-practices   google     best-practices.md
+uber               uber       uber.md
+effective          effective  effective.html
+EOF
+
+[ "$dry" = 1 ] && exit 0
+python3 "$here/../go-style/scripts/gostyle.py" validate

@@ -1,0 +1,75 @@
+1	uber-go-style-guide	Uber Go Style Guide	8	
+2	introduction	Introduction	75	
+2	guidelines	Guidelines	110	
+3	pointers-to-interfaces	Pointers to Interfaces	112	
+3	verify-interface-compliance	Verify Interface Compliance	127	
+3	receivers-and-interfaces	Receivers and Interfaces	200	
+3	zero-value-mutexes-are-valid	Zero-value Mutexes are Valid	275	
+3	copy-slices-and-maps-at-boundaries	Copy Slices and Maps at Boundaries	367	
+4	receiving-slices-and-maps	Receiving Slices and Maps	372	
+4	returning-slices-and-maps	Returning Slices and Maps	417	
+3	defer-to-clean-up	Defer to Clean Up	472	
+3	channel-size-is-one-or-none	Channel Size is One or None	522	
+3	start-enums-at-one	Start Enums at One	552	
+3	use-time-to-handle-time	Use `"time"` to handle time	609	
+4	use-timetime-for-instants-of-time	Use `time.Time` for instants of time	626	
+4	use-timeduration-for-periods-of-time	Use `time.Duration` for periods of time	653	
+4	use-timetime-and-timeduration-with-external-systems	Use `time.Time` and `time.Duration` with external systems	700	
+3	errors	Errors	755	
+4	error-types	Error Types	757	
+4	error-wrapping	Error Wrapping	889	
+4	error-naming	Error Naming	967	
+4	handle-errors-once	Handle Errors Once	1020	
+3	handle-type-assertion-failures	Handle Type Assertion Failures	1132	
+3	dont-panic	Don't Panic	1161	
+3	use-gouberorgatomic	Use go.uber.org/atomic	1247	
+3	avoid-mutable-globals	Avoid Mutable Globals	1302	
+3	avoid-embedding-types-in-public-structs	Avoid Embedding Types in Public Structs	1379	
+3	avoid-using-built-in-names	Avoid Using Built-In Names	1510	
+3	avoid-init	Avoid `init()`	1601	
+3	exit-in-main	Exit in Main	1716	
+4	exit-once	Exit Once	1790	
+3	use-field-tags-in-marshaled-structs	Use field tags in marshaled structs	1908	
+3	dont-fire-and-forget-goroutines	Don't fire-and-forget goroutines	1956	
+4	wait-for-goroutines-to-exit	Wait for goroutines to exit	2036	
+4	no-goroutines-in-init	No goroutines in `init()`	2069	
+2	performance	Performance	2148	
+3	prefer-strconv-over-fmt	Prefer strconv over fmt	2152	
+3	avoid-repeated-string-to-byte-conversions	Avoid repeated string-to-byte conversions	2192	
+3	prefer-specifying-container-capacity	Prefer Specifying Container Capacity	2233	
+4	specifying-map-capacity-hints	Specifying Map Capacity Hints	2239	
+4	specifying-slice-capacity	Specifying Slice Capacity	2297	
+2	style	Style	2353	
+3	avoid-overly-long-lines	Avoid overly long lines	2355	
+3	be-consistent	Be Consistent	2365	
+3	group-similar-declarations	Group Similar Declarations	2385	
+3	import-group-ordering	Import Group Ordering	2564	
+3	package-names	Package Names	2602	
+3	function-names	Function Names	2615	
+3	import-aliasing	Import Aliasing	2622	
+3	function-grouping-and-ordering	Function Grouping and Ordering	2669	
+3	reduce-nesting	Reduce Nesting	2725	
+3	unnecessary-else	Unnecessary Else	2771	
+3	top-level-variable-declarations	Top-level Variable Declarations	2802	
+3	prefix-unexported-globals-with-_	Prefix Unexported Globals with _	2845	
+3	embedding-in-structs	Embedding in Structs	2896	
+3	local-variable-declarations	Local Variable Declarations	3053	
+3	nil-is-a-valid-slice	nil is a valid slice	3111	
+3	reduce-scope-of-variables	Reduce Scope of Variables	3207	
+3	avoid-naked-parameters	Avoid Naked Parameters	3310	
+3	use-raw-string-literals-to-avoid-escaping	Use Raw String Literals to Avoid Escaping	3360	
+3	initializing-structs	Initializing Structs	3384	
+4	use-field-names-to-initialize-structs	Use Field Names to Initialize Structs	3386	
+4	omit-zero-value-fields-in-structs	Omit Zero Value Fields in Structs	3426	
+4	use-var-for-zero-value-structs	Use `var` for Zero Value Structs	3475	
+4	initializing-struct-references	Initializing Struct References	3502	
+3	initializing-maps	Initializing Maps	3531	
+3	format-strings-outside-printf	Format Strings outside Printf	3612	
+3	naming-printf-style-functions	Naming Printf-style Functions	3639	
+2	patterns	Patterns	3658	
+3	test-tables	Test Tables	3660	
+4	avoid-unnecessary-complexity-in-table-tests	Avoid Unnecessary Complexity in Table Tests	3764	
+4	parallel-tests	Parallel Tests	3896	
+3	functional-options	Functional Options	3926	
+2	linting	Linting	4081	
+3	lint-runners	Lint Runners	4098	

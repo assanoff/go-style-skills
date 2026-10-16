@@ -1,0 +1,16 @@
+1	go-style-guide	Go Style Guide	3	
+2	principles	Style principles	23	
+3	clarity	Clarity	45	
+4	clarity-purpose	What is the code actually doing?	61	
+4	clarity-rationale	Why is the code doing what it does?	79	
+3	simplicity	Simplicity	129	
+4	least-mechanism	Least mechanism	184	
+3	concision	Concision	212	
+3	maintainability	Maintainability	266	
+3	consistency	Consistency	359	
+2	core	Core guidelines	376	
+3	formatting	Formatting	390	
+3	mixed-caps	MixedCaps	402	
+3	line-length	Line length	420	
+3	naming	Naming	434	
+3	local-consistency	Local consistency	449	

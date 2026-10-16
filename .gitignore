@@ -1,0 +1,4 @@
+# Python bytecode from running the go-style scripts and tests.
+__pycache__/
+# Runs and reports of the go-style skills (each also carries its own .gitignore).
+.go-style/

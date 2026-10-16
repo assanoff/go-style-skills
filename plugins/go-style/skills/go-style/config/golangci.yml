@@ -1,0 +1,347 @@
+# golangci-lint v2 config of the go-style skills.
+#
+# Every check enabled here backs a rule of one of the style guides: the rule
+# catalogs (../rules/<guide>/*.md) name it in their `lint=` keys, and
+# scripts/gostyle.py uses those keys to attach the guide link to each issue.
+# Issues that map to no rule of the guides under review are dropped, so adding a
+# check here without a catalog key has no visible effect.
+#
+# The skills pass this file with --config; it does not replace a project's own
+# .golangci.yml. Checks are tuned to the guides, not to taste — the reason for
+# each non-default setting is next to it.
+version: "2"
+
+run:
+  # Paths in the JSON output are relative to the go.mod directory, which is
+  # where gostyle.py runs golangci-lint.
+  relative-path-mode: gomod
+
+linters:
+  default: none
+  enable:
+    - containedctx
+    - contextcheck
+    - depguard
+    - dupl
+    - embeddedstructfieldcheck
+    - errcheck
+    - errname
+    - errorlint
+    - exptostd
+    - forbidigo
+    - forcetypeassert
+    - funcorder
+    - gochecknoglobals
+    - gochecknoinits
+    - gocognit
+    - gocritic
+    - godoclint
+    - godot
+    - goprintffuncname
+    - govet
+    - iface
+    - interfacebloat
+    - lll
+    - modernize
+    - musttag
+    - nakedret
+    - nestif
+    - nilerr
+    - nilnil
+    - noctx
+    - perfsprint
+    - prealloc
+    - predeclared
+    - recvcheck
+    - revive
+    - staticcheck
+    - thelper
+    - tparallel
+    - unused
+    - usetesting
+
+  settings:
+    depguard:
+      rules:
+        # google-decisions#use-package-testing: tests use the testing package
+        # (plus cmp), not assertion libraries or test frameworks.
+        test-frameworks:
+          list-mode: lax
+          files: ["$test"]
+          deny:
+            - pkg: github.com/stretchr/testify/assert
+              desc: assertion library; use t.Errorf with got/want and cmp.Diff
+            - pkg: github.com/stretchr/testify/require
+              desc: assertion library; use t.Fatalf with got/want and cmp.Diff
+            - pkg: github.com/stretchr/testify/suite
+              desc: test framework; use the testing package
+            - pkg: github.com/onsi/gomega
+              desc: assertion library; use the testing package and cmp
+            - pkg: github.com/onsi/ginkgo
+              desc: test framework; use the testing package
+            - pkg: gopkg.in/check.v1
+              desc: test framework; use the testing package
+            - pkg: github.com/smartystreets/goconvey
+              desc: test framework; use the testing package
+            - pkg: github.com/frankban/quicktest
+              desc: assertion library; use the testing package and cmp
+            - pkg: github.com/matryer/is
+              desc: assertion library; use the testing package and cmp
+            - pkg: gotest.tools
+              desc: assertion library; use the testing package and cmp
+        # google-decisions#types-of-equality: cmp is for tests; it may panic.
+        # Test-helper packages are exempt by path.
+        cmp-in-production:
+          list-mode: lax
+          files:
+            - "!$test"
+            - "!**/*test*/**"
+            - "!**/testutil*/**"
+          deny:
+            - pkg: github.com/google/go-cmp
+              desc: cmp is meant for tests and may panic; compare explicitly in production code
+
+    dupl:
+      # A hint for google-guide#concision (repetition hides the differences);
+      # test files are excluded below, table tests repeat by design.
+      threshold: 150
+
+    embeddedstructfieldcheck:
+      # uber#embedding-in-structs: embedded fields at the top, then a blank line.
+      empty-line: true
+      # uber#zero-value-mutexes-are-valid: never embed sync.Mutex / RWMutex.
+      forbid-mutex: true
+
+    forbidigo:
+      analyze-types: true
+      forbid:
+        # google-decisions#types-of-equality; limited to tests by the exclusion
+        # rule below.
+        - pattern: ^reflect\.DeepEqual$
+          msg: compare with cmp.Equal or cmp.Diff instead of reflect.DeepEqual
+
+    funcorder:
+      # uber#function-grouping-and-ordering.
+      constructor: true
+      struct-method: true
+
+    gocognit:
+      # A hotspot hint for google-guide#simplicity, not a hard limit.
+      min-complexity: 30
+
+    gocritic:
+      disable-all: true
+      enabled-checks:
+        - appendAssign
+        - boolExprSimplify
+        - captLocal
+        - docStub
+        - exitAfterDefer
+        - ifElseChain
+        - nestingReduce
+        - preferFprint
+        - ptrToRefParam
+        - sloppyReassign
+        - sprintfQuotedString
+        - stringConcatSimplify
+        - switchTrue
+        - typeDefFirst
+        - typeSwitchVar
+        - yodaStyleExpr
+      settings:
+        captLocal:
+          # Local variables too, not only parameters (google-guide#mixed-caps).
+          paramsOnly: false
+
+    godoclint:
+      # revive's exported and package-comments rules cover the doc comment
+      # form; godoclint adds the one-package-comment-per-package check.
+      default: none
+      enable:
+        - single-pkg-doc
+
+    godot:
+      # google-decisions#comment-sentences: doc comments are full sentences.
+      scope: declarations
+
+    govet:
+      # Default analyzers plus shadow (google-practices#shadowing; the catalog
+      # maps only non-err shadowing, the noisy intentional case is left out).
+      enable:
+        - shadow
+
+    iface:
+      enable:
+        - identical
+        - opaque
+        - unused
+        - unusedmethod
+
+    lll:
+      # uber#avoid-overly-long-lines (soft limit 99). Google sets no limit, so
+      # these findings are dropped in multi-guide runs.
+      line-length: 99
+      tab-width: 4
+
+    modernize:
+      # Only atomictypes backs a rule (uber#use-gouberorgatomic, superseded by
+      # the typed values of sync/atomic).
+      disable:
+        - any
+        - embedlit
+        - errorsastype
+        - forvar
+        - importcomment
+        - mapsloop
+        - minmax
+        - newexpr
+        - omitzero
+        - plusbuild
+        - rangeint
+        - reflecttypeassert
+        - reflecttypefor
+        - slicesbackward
+        - slicesclip
+        - slicescontains
+        - slicessort
+        - stditerators
+        - stringsbuilder
+        - stringscut
+        - stringscutprefix
+        - stringsseq
+        - testingcontext
+        - unsafefuncs
+        - waitgroupgo
+
+    nakedret:
+      # google-decisions#named-result-parameters: naked returns only in
+      # functions of a handful of lines.
+      max-func-lines: 8
+
+    revive:
+      rules:
+        - name: argument-limit
+          arguments: [6]
+        - name: blank-imports
+        - name: confusing-results
+        - name: context-as-argument
+        - name: deep-exit
+        - name: defer
+          # effective#recover: only the recover checks; call-chain would flag
+          # the deferred-trace idiom Effective Go recommends.
+          arguments:
+            - [recover, immediate-recover]
+        - name: dot-imports
+        - name: early-return
+        - name: enforce-map-style
+          arguments: [make]
+        - name: enforce-slice-style
+          arguments: [nil]
+        - name: error-return
+        - name: exported
+        - name: file-length-limit
+          # google-practices#package-size: "many thousands of lines" in a file.
+          arguments:
+            - max: 3000
+              skip-comments: true
+              skip-blank-lines: true
+        - name: import-alias-naming
+        - name: import-shadowing
+        - name: indent-error-flow
+        - name: modifies-value-receiver
+        - name: package-comments
+        - name: package-directory-mismatch
+        - name: package-naming
+          # google-decisions#package-names lists util, utility, common, helper,
+          # model, testhelper; revive's default list covers util(s), common,
+          # misc, types, interfaces. Its "extra" list adds api, which Google
+          # does not object to, so the rest is named here instead.
+          arguments:
+            - user-defined-bad-names:
+                - utility
+                - utilities
+                - helper
+                - helpers
+                - model
+                - models
+                - testhelper
+                - testhelpers
+        - name: range
+        - name: receiver-naming
+          # google-decisions#receiver-names: "usually one or two letters".
+          arguments:
+            - max-length: 3
+        - name: redundant-import-alias
+        - name: superfluous-else
+        - name: time-equal
+        - name: time-naming
+        - name: unnecessary-format
+        - name: unnecessary-if
+        - name: use-any
+        - name: useless-break
+        - name: useless-fallthrough
+        - name: var-declaration
+        - name: var-naming
+
+    staticcheck:
+      checks:
+        - S1007
+        - S1009
+        - S1011
+        - S1019
+        - S1023
+        - S1028
+        - S1033
+        - S1034
+        - SA2002
+        - SA4005
+        - SA4011
+        - SA5001
+        - ST1005
+        # Receiver names consistent across the files of a package (revive only
+        # compares within a file).
+        - ST1016
+        - ST1017
+
+    thelper:
+      # google-decisions#mark-test-helpers asks for t.Helper() and t first; the
+      # parameter name is not a guide rule.
+      test: {first: true, name: false, begin: true}
+      benchmark: {first: true, name: false, begin: true}
+      tb: {first: true, name: false, begin: true}
+      fuzz: {first: true, name: false, begin: true}
+
+    usetesting:
+      # google-decisions#contexts: tests take their context from t.Context().
+      context-background: true
+      context-todo: true
+
+  exclusions:
+    generated: strict
+    # Unchecked Close/Flush/print/os.Remove/os.Setenv results: deferred Close on
+    # a read-only file or response body is accepted practice in every guide.
+    presets:
+      - std-error-handling
+    rules:
+      - path-except: _test\.go$
+        linters: [forbidigo]
+        text: DeepEqual
+      # Table tests and subtests repeat by design and inflate complexity scores.
+      - path: _test\.go$
+        linters: [dupl, gocognit]
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    gofmt:
+      # google-guide#formatting requires gofmt output; `gofmt -s` rewrites are
+      # simplifications (revive's range rule covers the common one), not a must.
+      simplify: false
+
+issues:
+  # Report everything: the skills group and collapse findings in the report.
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  uniq-by-line: false

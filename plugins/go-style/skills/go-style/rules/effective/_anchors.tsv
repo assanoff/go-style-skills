@@ -1,0 +1,59 @@
+2	introduction	Introduction	16	
+3	examples	Examples	50	
+2	formatting	Formatting	69	
+2	commentary	Commentary	156	
+2	names	Names	173	
+3	package-names	Package names	185	
+3	Getters	Getters	250	
+3	interface-names	Interface names	271	
+3	mixed-caps	MixedCaps	295	
+2	semicolons	Semicolons	303	
+2	control-structures	Control structures	367	
+3	if	If	387	
+3	redeclaration	Redeclaration and reassignment	455	
+3	for	For	510	
+3	switch	Switch	614	
+3	type_switch	Type switch	722	
+2	functions	Functions	750	
+3	multiple-returns	Multiple return values	752	
+3	named-results	Named result parameters	814	
+3	defer	Defer	855	
+2	data	Data	989	
+3	allocation_new	Allocation with new	991	
+3	composite_literals	Constructors and composite literals	1052	
+3	allocation_make	Allocation with make	1133	
+3	arrays	Arrays	1192	
+3	slices	Slices	1240	
+3	two_dimensional_slices	Two-dimensional slices	1327	
+3	maps	Maps	1393	
+3	printing	Printing	1500	
+3	append	Append	1722	
+2	initialization	Initialization	1772	
+3	constants	Constants	1782	
+3	variables	Variables	1828	
+3	init	The init function	1842	
+2	methods	Methods	1875	
+3	pointers_vs_values	Pointers vs. Values	1877	
+2	interfaces_and_types	Interfaces and other types	1956	
+3	interfaces	Interfaces	1958	
+3	conversions	Conversions	1981	
+3	interface_conversions	Interface conversions and type assertions	2032	
+3	generality	Generality	2118	
+3	interface_methods	Interfaces and methods	2190	
+2	blank	The blank identifier	2343	
+3	blank_assign	The blank identifier in multiple assignment	2358	
+3	blank_unused	Unused imports and variables	2397	
+3	blank_import	Import for side effect	2434	
+3	blank_implements	Interface checks	2461	
+2	embedding	Embedding	2535	
+2	concurrency	Concurrency	2707	
+3	sharing	Share by communicating	2709	
+3	goroutines	Goroutines	2745	
+3	channels	Channels	2794	
+3	chan_of_chan	Channels of channels	2921	
+3	parallel	Parallelization	2976	
+3	leaky_buffer	A leaky buffer	3055	
+2	errors	Errors	3121	
+3	panic	Panic	3221	
+3	recover	Recover	3276	
+2	web_server	A web server	3420	

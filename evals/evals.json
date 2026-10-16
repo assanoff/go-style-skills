@@ -1,0 +1,62 @@
+{
+  "skill_name": "go-style",
+  "notes": "Each eval runs on a fresh copy of evals/fixture (a Go module with seeded problems, see expected.json). Score a run with: python3 skills/evals/score.py <report>.json",
+  "evals": [
+    {
+      "id": 1,
+      "name": "decisions-full-module",
+      "skill": "go-style-decisions",
+      "prompt": "Проверь этот Go-модуль на соответствие Google Go Style Decisions и дай отчёт со ссылками на разделы гайда.",
+      "expected_output": "Report under .go-style/reports with findings linked to google-decisions sections; recall of the google-decisions items in expected.json; no findings on the negative items.",
+      "files": ["fixture/"]
+    },
+    {
+      "id": 2,
+      "name": "uber-full-module",
+      "skill": "go-style-uber",
+      "prompt": "/go-style-uber",
+      "expected_output": "Report linked to the Uber guide; conflicts with Google flagged as optional; recall of the uber items.",
+      "files": ["fixture/"]
+    },
+    {
+      "id": 3,
+      "name": "all-guides-full-module",
+      "skill": "go-style",
+      "prompt": "сделай ревью кода этого модуля по всем гайдам (google, effective go, uber)",
+      "expected_output": "One combined report; each problem reported once under the highest-priority guide with see-also links; Uber advice that contradicts Google not reported.",
+      "files": ["fixture/"]
+    },
+    {
+      "id": 4,
+      "name": "effective-full-module",
+      "skill": "go-style-effective",
+      "prompt": "Насколько этот код идиоматичен с точки зрения Effective Go?",
+      "expected_output": "Report linked to Effective Go sections; recall of the effective items.",
+      "files": ["fixture/"]
+    },
+    {
+      "id": 5,
+      "name": "guide-principles",
+      "skill": "go-style-guide",
+      "prompt": "/go-style-guide ./pkg/... ./internal/...",
+      "expected_output": "Principle-level findings (least mechanism in util.Sum, clarity) with links to the core guide; mechanical findings from gofmt/var-naming.",
+      "files": ["fixture/"]
+    },
+    {
+      "id": 6,
+      "name": "practices-full-module",
+      "skill": "go-style-practices",
+      "prompt": "Пройдись по модулю с Google Go Best Practices: обработка ошибок, глобальное состояние, тесты.",
+      "expected_output": "Findings mostly 'consider', grouped by theme; recall of google-practices items.",
+      "files": ["fixture/"]
+    },
+    {
+      "id": 7,
+      "name": "diff-mode",
+      "skill": "go-style",
+      "prompt": "проверь только мои изменения по гайдам",
+      "expected_output": "Only findings on the lines changed since the base commit (the fixture copy is committed first, then one file is edited).",
+      "files": ["fixture/"]
+    }
+  ]
+}

@@ -1,0 +1,74 @@
+1	go-style-best-practices	Go Style Best Practices	3	
+2	about	About	23	
+2	naming	Naming	35	
+3	function-names	Function and method names	39	
+4	function-name-repetition	Avoid repetition	43	
+4	function-name-conventions	Naming conventions	119	
+3	naming-doubles	Test double and helper packages	168	
+4	naming-doubles-helper-package	Creating test helper packages	212	
+4	naming-doubles-simple	Simple case	231	
+4	naming-doubles-multiple-behaviors	Multiple test double behaviors	281	
+4	naming-doubles-multiple-types	Multiple doubles for multiple types	305	
+4	naming-doubles-local-variables	Local variables in tests	347	
+3	shadowing	Shadowing	437	
+3	util-packages	Util packages	542	
+2	package-size	Package size	580	
+2	imports	Imports	687	
+3	import-protos	Protocol Buffer Messages and Stubs	691	
+3	import-order	Import ordering	729	
+2	error-handling	Error handling	735	
+3	error-structure	Error structure	780	
+3	error-extra-info	Adding information to errors	882	
+3	error-percent-w	Placement of %w in errors	1031	
+4	error-percent-w-sentinel-placement	Sentinel error placement	1101	
+3	error-logging	Logging errors	1170	
+4	vlog	Custom verbosity levels	1211	
+3	program-init	Program initialization	1247	
+3	checks-and-panics	Program checks and panics	1257	
+3	when-to-panic	When to panic	1291	
+2	documentation	Documentation	1386	
+3	documentation-conventions	Conventions	1390	
+4	documentation-conventions-params	Parameters and configuration	1403	
+4	documentation-conventions-contexts	Contexts	1459	
+4	documentation-conventions-concurrency	Concurrency	1534	
+4	documentation-conventions-cleanup	Cleanup	1620	
+4	documentation-conventions-errors	Errors	1664	
+3	documentation-preview	Preview	1736	
+3	godoc-formatting	Godoc formatting	1748	
+3	signal-boost	Signal boosting	1827	
+2	vardecls	Variable declarations	1860	
+3	vardeclinitialization	Initialization	1864	
+3	vardeclzero	Declaring variables with zero values	1881	
+3	vardeclcomposite	Composite literals	1986	
+3	vardeclsize	Size hints	2022	
+3	decl-chan	Channel direction	2058	
+2	funcargs	Function argument lists	2097	
+3	option-structure	Option structure	2129	
+3	variadic-options	Variadic options	2208	
+2	complex-clis	Complex command-line interfaces	2364	
+2	tests	Tests	2407	
+3	test-functions	Leave testing to the `Test` function	2411	
+3	test-validation-apis	Designing extensible validation APIs	2535	
+4	test-validation-apis-what	Acceptance testing	2543	
+4	test-validation-apis-writing	Writing an acceptance test	2577	
+3	use-real-transports	Use real transports	2702	
+3	t-fatal	`t.Error` vs. `t.Fatal`	2730	
+3	test-helper-error-handling	Error handling in test helpers	2756	
+3	t-fatal-goroutine	Don't call `t.Fatal` from separate goroutines	2895	
+3	t-field-names	Use field names in struct literals	2951	
+3	t-common-setup-scope	Keep setup code scoped to specific tests	2989	
+4	t-custom-main	When to use a custom `TestMain` entrypoint	3081	
+4	t-setup-amortization	Amortizing common test setup	3152	
+2	string-concat	String concatenation	3217	
+3	string-concat-simple	Prefer "+" for simple cases	3232	
+3	string-concat-fmt	Prefer `fmt.Sprintf` when formatting	3244	
+3	string-concat-piecemeal	Prefer `strings.Builder` for constructing a string piecemeal	3271	
+3	string-constants	Constant strings	3291	
+2	globals	Global state	3319	
+3	globals-forms	Major forms of package state APIs	3495	
+3	globals-litmus-tests	Litmus tests	3561	
+3	globals-default-instance	Providing a default instance	3620	
+2	interfaces	Interfaces	3672	
+3	avoid-unnecessary-interfaces	Avoid unnecessary interfaces	3683	
+3	interface-ownership-and-visibility	Interface ownership and visibility	3733	
+3	designing-effective-interfaces	Designing effective interfaces	3782	

@@ -1,0 +1,986 @@
+{
+ "fixture": "fixture",
+ "notes": "Seeded style problems in evals/fixture. An item is found when a finding has the same file, a rule whose base id (guide:anchor) is in `rules`, and a line within `tolerance` (default 3) of a line containing one of the `match` strings. `optional` items are debatable: they count neither for recall nor as false positives. `negatives` must not be reported.",
+ "items": [
+  {
+   "id": "store-pkg-comment",
+   "file": "internal/store/store.go",
+   "match": [
+    "// store keeps the inventory"
+   ],
+   "kind": "lint",
+   "rules": [
+    "google-decisions:package-comments",
+    "effective:commentary"
+   ]
+  },
+  {
+   "id": "store-enum-zero",
+   "file": "internal/store/store.go",
+   "match": [
+    "StatusActive Status = iota"
+   ],
+   "kind": "llm",
+   "rules": [
+    "uber:start-enums-at-one"
+   ]
+  },
+  {
+   "id": "store-errnotfound-string",
+   "file": "internal/store/store.go",
+   "match": [
+    "errors.New(\"Item not found.\")"
+   ],
+   "kind": "lint",
+   "rules": [
+    "google-decisions:error-strings",
+    "effective:errors"
+   ]
+  },
+  {
+   "id": "store-errnotfound-doc",
+   "file": "internal/store/store.go",
+   "match": [
+    "var ErrNotFound"
+   ],
+   "kind": "lint",
+   "rules": [
+    "google-decisions:doc-comments",
+    "effective:commentary"
+   ]
+  },
+  {
+   "id": "store-tostring",
+   "file": "internal/store/store.go",
+   "match": [
+    "func (i Item) ToString() string"
+   ],
+   "kind": "llm",
+   "rules": [
+    "effective:interface-names",
+    "effective:printing"
+   ]
+  },
+  {
+   "id": "store-type-doc",
+   "file": "internal/store/store.go",
+   "match": [
+    "type Store struct {"
+   ],
+   "kind": "lint",
+   "rules": [
+    "google-decisions:doc-comments",
+    "effective:commentary"
+   ]
+  },
+  {
+   "id": "store-embedded-mutex",
+   "file": "internal/store/store.go",
+   "match": [
+    "\tsync.Mutex"
+   ],
+   "kind": "lint",
+   "rules": [
+    "uber:zero-value-mutexes-are-valid",
+    "uber:avoid-embedding-types-in-public-structs"
+   ]
+  },
+  {
+   "id": "store-embedded-blank-line",
+   "file": "internal/store/store.go",
+   "match": [
+    "\tsync.Mutex"
+   ],
+   "kind": "lint",
+   "optional": true,
+   "rules": [
+    "uber:embedding-in-structs"
+   ]
+  },
+  {
+   "id": "store-ctx-field",
+   "file": "internal/store/store.go",
+   "match": [
+    "ctx    context.Context"
+   ],
+   "kind": "lint",
+   "rules": [
+    "google-decisions:contexts"
+   ]
+  },
+  {
+   "id": "store-new-doc-form",
+   "file": "internal/store/store.go",
+   "match": [
+    "// Creates a new store."
+   ],
+   "kind": "lint",
+   "rules": [
+    "google-decisions:doc-comments",
+    "effective:commentary"
+   ]
+  },
+  {
+   "id": "store-chan-100",
+   "file": "internal/store/store.go",
+   "match": [
+    "make(chan Event, 100)"
+   ],
+   "kind": "llm",
+   "rules": [
+    "uber:channel-size-is-one-or-none"
+   ]
+  },
+  {
+   "id": "store-goroutine-lifetime",
+   "file": "internal/store/store.go",
+   "match": [
+    "go s.loop()"
+   ],
+   "kind": "llm",
+   "rules": [
+    "google-decisions:goroutine-lifetimes",
+    "uber:dont-fire-and-forget-goroutines",
+    "uber:wait-for-goroutines-to-exit"
+   ]
+  },
+  {
+   "id": "store-receiver-name",
+   "file": "internal/store/store.go",
+   "match": [
+    "func (store *Store) Put("
+   ],
+   "kind": "lint",
+   "rules": [
+    "google-decisions:receiver-names"
+   ]
+  },
+  {
+   "id": "store-panic",
+   "file": "internal/store/store.go",
+   "match": [
+    "panic(\"store: empty item id\")"
+   ],
+   "kind": "llm",
+   "rules": [
+    "google-decisions:dont-panic",
+    "uber:dont-panic",
+    "google-practices:when-to-panic",
+    "google-practices:checks-and-panics",
+    "effective:panic"
+   ]
+  },
+  {
+   "id": "store-getter",
+   "file": "internal/store/store.go",
+   "match": [
+    "func (s *Store) GetCount() int"
+   ],
+   "kind": "llm",
+   "rules": [
+    "google-decisions:getters",
+    "effective:Getters"
+   ]
+  },
+  {
+   "id": "store-in-band",
+   "file": "internal/store/store.go",
+   "match": [
+    "func (s *Store) Find(id string) int",
+    "return -1"
+   ],
+   "kind": "llm",
+   "rules": [
+    "google-decisions:in-band-errors",
+    "effective:multiple-returns"
+   ]
+  },
+  {
+   "id": "store-else-after-return",
+   "file": "internal/store/store.go",
+   "match": [
+    "if item, ok := s.items[id]; ok {",
+    "return Item{}, ErrNotFound"
+   ],
+   "kind": "lint",
+   "rules": [
+    "google-decisions:indent-error-flow",
+    "effective:if",
+    "uber:reduce-nesting",
+    "uber:unnecessary-else"
+   ]
+  },
+  {
+   "id": "store-items-map",
+   "file": "internal/store/store.go",
+   "match": [
+    "func (s *Store) Items() map[string]Item",
+    "return s.items"
+   ],
+   "kind": "llm",
+   "rules": [
+    "uber:copy-slices-and-maps-at-boundaries"
+   ]
+  },
+  {
+   "id": "store-ctx-not-first",
+   "file": "internal/store/store.go",
+   "match": [
+    "func (s *Store) Load(path string, ctx context.Context)"
+   ],
+   "kind": "lint",
+   "rules": [
+    "google-decisions:contexts"
+   ]
+  },
+  {
+   "id": "store-log-and-return",
+   "file": "internal/store/store.go",
+   "match": [
+    "log.Printf(\"load %s: %v\", path, err)"
+   ],
+   "kind": "llm",
+   "rules": [
+    "uber:handle-errors-once",
+    "google-practices:error-logging"
+   ]
+  },
+  {
+   "id": "store-var-name-type",
+   "file": "internal/store/store.go",
+   "match": [
+    "var itemsSlice []Item"
+   ],
+   "kind": "llm",
+   "rules": [
+    "google-decisions:repetitive-with-type",
+    "google-decisions:variable-names"
+   ]
+  },
+  {
+   "id": "store-errorf-string",
+   "file": "internal/store/store.go",
+   "match": [
+    "\"Failed to decode %s: %v\""
+   ],
+   "kind": "lint",
+   "rules": [
+    "google-decisions:error-strings"
+   ]
+  },
+  {
+   "id": "store-errorf-wrap",
+   "file": "internal/store/store.go",
+   "match": [
+    "\"Failed to decode %s: %v\""
+   ],
+   "kind": "lint",
+   "optional": true,
+   "rules": [
+    "uber:error-wrapping",
+    "google-practices:error-percent-w",
+    "google-practices:error-extra-info",
+    "google-practices:error-structure"
+   ]
+  },
+  {
+   "id": "store-interface-empty",
+   "file": "internal/store/store.go",
+   "match": [
+    "v interface{}"
+   ],
+   "kind": "lint",
+   "rules": [
+    "google-decisions:use-any"
+   ]
+  },
+  {
+   "id": "test-helper",
+   "file": "internal/store/store_test.go",
+   "match": [
+    "func newTestStore(t *testing.T) *Store"
+   ],
+   "kind": "lint",
+   "rules": [
+    "google-decisions:mark-test-helpers"
+   ]
+  },
+  {
+   "id": "test-positional-fields",
+   "file": "internal/store/store_test.go",
+   "match": [
+    "{\"a\", 3},"
+   ],
+   "kind": "llm",
+   "rules": [
+    "google-practices:t-field-names"
+   ]
+  },
+  {
+   "id": "test-want-before-got",
+   "file": "internal/store/store_test.go",
+   "match": [
+    "t.Errorf(\"expected %d, got %d\""
+   ],
+   "kind": "llm",
+   "rules": [
+    "google-decisions:got-before-want"
+   ]
+  },
+  {
+   "id": "test-identify-function",
+   "file": "internal/store/store_test.go",
+   "match": [
+    "t.Errorf(\"expected %d, got %d\""
+   ],
+   "kind": "llm",
+   "rules": [
+    "google-decisions:identify-the-function",
+    "google-decisions:identify-the-input",
+    "google-decisions:table-tests-identifying-the-row"
+   ]
+  },
+  {
+   "id": "test-deepequal",
+   "file": "internal/store/store_test.go",
+   "match": [
+    "reflect.DeepEqual(s.Items(), want)"
+   ],
+   "kind": "lint",
+   "rules": [
+    "google-decisions:types-of-equality"
+   ]
+  },
+  {
+   "id": "test-no-diff",
+   "file": "internal/store/store_test.go",
+   "match": [
+    "t.Error(\"wrong items\")"
+   ],
+   "kind": "llm",
+   "rules": [
+    "google-decisions:print-diffs",
+    "google-decisions:identify-the-function",
+    "google-decisions:identify-the-input",
+    "google-decisions:types-of-equality",
+    "google-decisions:level-of-detail",
+    "google-decisions:got-before-want"
+   ]
+  },
+  {
+   "id": "test-fatal-goroutine",
+   "file": "internal/store/store_test.go",
+   "match": [
+    "t.Fatal(\"store is empty\")"
+   ],
+   "kind": "lint",
+   "rules": [
+    "google-practices:t-fatal-goroutine"
+   ]
+  },
+  {
+   "id": "test-testify",
+   "file": "internal/store/store_test.go",
+   "match": [
+    "\"github.com/stretchr/testify/assert\"",
+    "assert.NoError(t, err)"
+   ],
+   "kind": "lint",
+   "rules": [
+    "google-decisions:use-package-testing",
+    "google-decisions:assert"
+   ]
+  },
+  {
+   "id": "notify-timeout-int",
+   "file": "internal/notify/notify.go",
+   "match": [
+    "Timeout int",
+    "timeout int"
+   ],
+   "kind": "llm",
+   "rules": [
+    "uber:use-timeduration-for-periods-of-time",
+    "uber:use-time-to-handle-time"
+   ]
+  },
+  {
+   "id": "notify-new-struct",
+   "file": "internal/notify/notify.go",
+   "match": [
+    "n := new(Notifier)"
+   ],
+   "kind": "llm",
+   "rules": [
+    "uber:initializing-struct-references",
+    "google-decisions:literal-formatting",
+    "google-practices:vardeclcomposite",
+    "google-practices:vardeclzero"
+   ]
+  },
+  {
+   "id": "notify-default-global",
+   "file": "internal/notify/notify.go",
+   "match": [
+    "var Default = NewNotifier("
+   ],
+   "kind": "llm",
+   "rules": [
+    "uber:avoid-mutable-globals",
+    "google-practices:globals",
+    "google-practices:globals-forms",
+    "google-practices:globals-litmus-tests",
+    "google-practices:globals-default-instance"
+   ]
+  },
+  {
+   "id": "notify-naked-bools",
+   "file": "internal/notify/notify.go",
+   "match": [
+    "Default.Post(msg, true, false)"
+   ],
+   "kind": "llm",
+   "rules": [
+    "uber:avoid-naked-parameters"
+   ]
+  },
+  {
+   "id": "notify-settags-copy",
+   "file": "internal/notify/notify.go",
+   "match": [
+    "func (n *Notifier) SetTags(tags []string)",
+    "n.tags = tags"
+   ],
+   "kind": "llm",
+   "rules": [
+    "uber:copy-slices-and-maps-at-boundaries"
+   ]
+  },
+  {
+   "id": "notify-unnecessary-else",
+   "file": "internal/notify/notify.go",
+   "match": [
+    "var body string",
+    "body = msg"
+   ],
+   "kind": "llm",
+   "rules": [
+    "uber:unnecessary-else"
+   ]
+  },
+  {
+   "id": "notify-raw-string",
+   "file": "internal/notify/notify.go",
+   "match": [
+    "payload := \"{\\\"text\\\": \\\"\""
+   ],
+   "kind": "llm",
+   "rules": [
+    "uber:use-raw-string-literals-to-avoid-escaping"
+   ]
+  },
+  {
+   "id": "notify-failed-to",
+   "file": "internal/notify/notify.go",
+   "match": [
+    "\"failed to post notification: %w\""
+   ],
+   "kind": "llm",
+   "rules": [
+    "uber:error-wrapping"
+   ]
+  },
+  {
+   "id": "notify-sprint-int",
+   "file": "internal/notify/notify.go",
+   "match": [
+    "fmt.Sprint(count)"
+   ],
+   "kind": "lint",
+   "rules": [
+    "uber:prefer-strconv-over-fmt"
+   ]
+  },
+  {
+   "id": "notify-sprintf-concat",
+   "file": "internal/notify/notify.go",
+   "match": [
+    "fmt.Sprintf(\"%s: %s\""
+   ],
+   "kind": "lint",
+   "optional": true,
+   "rules": [
+    "google-practices:string-concat-simple",
+    "google-practices:string-concat"
+   ]
+  },
+  {
+   "id": "notify-switch-true",
+   "file": "internal/notify/notify.go",
+   "match": [
+    "switch true {"
+   ],
+   "kind": "lint",
+   "rules": [
+    "effective:switch"
+   ]
+  },
+  {
+   "id": "notify-defaultsettings-doc",
+   "file": "internal/notify/notify.go",
+   "match": [
+    "// Settings for the default batch."
+   ],
+   "kind": "lint",
+   "rules": [
+    "google-decisions:doc-comments",
+    "effective:commentary"
+   ]
+  },
+  {
+   "id": "notify-zero-fields",
+   "file": "internal/notify/notify.go",
+   "match": [
+    "Retries: 0, Verbose: false"
+   ],
+   "kind": "llm",
+   "rules": [
+    "uber:omit-zero-value-fields-in-structs",
+    "google-decisions:literal-zero-value-fields"
+   ],
+   "optional": true
+  },
+  {
+   "id": "util-pkg-name",
+   "file": "pkg/util/util.go",
+   "match": [
+    "package util"
+   ],
+   "kind": "lint",
+   "rules": [
+    "google-decisions:package-names",
+    "google-practices:util-packages",
+    "uber:package-names"
+   ]
+  },
+  {
+   "id": "util-all-caps",
+   "file": "pkg/util/util.go",
+   "match": [
+    "var MAX_RETRIES = 3"
+   ],
+   "kind": "lint",
+   "rules": [
+    "google-decisions:constant-names",
+    "google-decisions:underscores",
+    "google-guide:mixed-caps",
+    "effective:mixed-caps"
+   ]
+  },
+  {
+   "id": "util-max-retries-doc",
+   "file": "pkg/util/util.go",
+   "match": [
+    "var MAX_RETRIES = 3"
+   ],
+   "kind": "lint",
+   "rules": [
+    "google-decisions:doc-comments",
+    "effective:commentary"
+   ]
+  },
+  {
+   "id": "util-mutable-global",
+   "file": "pkg/util/util.go",
+   "match": [
+    "var cache = map[string]string{}"
+   ],
+   "kind": "lint",
+   "rules": [
+    "uber:avoid-mutable-globals",
+    "google-practices:globals",
+    "google-practices:globals-litmus-tests",
+    "google-practices:globals-forms"
+   ]
+  },
+  {
+   "id": "util-map-literal",
+   "file": "pkg/util/util.go",
+   "match": [
+    "var cache = map[string]string{}",
+    "cache = map[string]string{}"
+   ],
+   "kind": "lint",
+   "optional": true,
+   "rules": [
+    "uber:initializing-maps"
+   ]
+  },
+  {
+   "id": "util-init",
+   "file": "pkg/util/util.go",
+   "match": [
+    "func init() {"
+   ],
+   "kind": "lint",
+   "rules": [
+    "uber:avoid-init",
+    "uber:no-goroutines-in-init"
+   ]
+  },
+  {
+   "id": "util-goroutine-in-init",
+   "file": "pkg/util/util.go",
+   "match": [
+    "go refresh()"
+   ],
+   "kind": "llm",
+   "rules": [
+    "uber:no-goroutines-in-init",
+    "google-decisions:goroutine-lifetimes",
+    "uber:dont-fire-and-forget-goroutines"
+   ]
+  },
+  {
+   "id": "util-stutter",
+   "file": "pkg/util/util.go",
+   "match": [
+    "func UtilJoin(parts []string) string"
+   ],
+   "kind": "lint",
+   "rules": [
+    "google-decisions:repetitive-with-package",
+    "effective:package-names",
+    "google-practices:function-name-repetition",
+    "google-guide:naming"
+   ]
+  },
+  {
+   "id": "util-range-blank",
+   "file": "pkg/util/util.go",
+   "match": [
+    "for i, _ := range parts {"
+   ],
+   "kind": "lint",
+   "rules": [
+    "effective:for"
+   ]
+  },
+  {
+   "id": "util-percent-q",
+   "file": "pkg/util/util.go",
+   "match": [
+    "fmt.Sprintf(\"\\\"%s\\\"\", s)"
+   ],
+   "kind": "lint",
+   "rules": [
+    "google-decisions:use-percent-q"
+   ]
+  },
+  {
+   "id": "util-initialism",
+   "file": "pkg/util/util.go",
+   "match": [
+    "func ParseId(id string)"
+   ],
+   "kind": "lint",
+   "rules": [
+    "google-decisions:initialisms"
+   ]
+  },
+  {
+   "id": "util-naked-return",
+   "file": "pkg/util/util.go",
+   "match": [
+    "func ParseId(id string)"
+   ],
+   "kind": "lint",
+   "tolerance": 18,
+   "rules": [
+    "google-decisions:named-result-parameters"
+   ]
+  },
+  {
+   "id": "util-least-mechanism",
+   "file": "pkg/util/util.go",
+   "match": [
+    "func Sum(counts []int) int",
+    "ch := make(chan int)"
+   ],
+   "kind": "llm",
+   "tolerance": 6,
+   "rules": [
+    "google-guide:least-mechanism",
+    "google-guide:simplicity",
+    "google-guide:clarity"
+   ]
+  },
+  {
+   "id": "util-exit-in-library",
+   "file": "pkg/util/util.go",
+   "match": [
+    "os.Exit(1)",
+    "func MustEnv(key string) string"
+   ],
+   "kind": "lint",
+   "tolerance": 6,
+   "rules": [
+    "uber:exit-in-main",
+    "google-decisions:must-functions",
+    "google-decisions:dont-panic",
+    "google-practices:checks-and-panics",
+    "google-practices:program-init"
+   ]
+  },
+  {
+   "id": "main-dot-import",
+   "file": "cmd/inventory/main.go",
+   "match": [
+    ". \"example.com/inventory/internal/notify\""
+   ],
+   "kind": "lint",
+   "rules": [
+    "google-decisions:import-dot"
+   ]
+  },
+  {
+   "id": "main-redundant-alias",
+   "file": "cmd/inventory/main.go",
+   "match": [
+    "store \"example.com/inventory/internal/store\""
+   ],
+   "kind": "lint",
+   "rules": [
+    "google-decisions:import-renaming",
+    "uber:import-aliasing"
+   ]
+  },
+  {
+   "id": "main-import-format",
+   "file": "cmd/inventory/main.go",
+   "match": [
+    "import (",
+    "_ \"net/http/pprof\""
+   ],
+   "kind": "lint",
+   "tolerance": 8,
+   "rules": [
+    "google-guide:formatting",
+    "google-decisions:import-grouping",
+    "uber:import-group-ordering",
+    "effective:formatting"
+   ]
+  },
+  {
+   "id": "main-exit-once",
+   "file": "cmd/inventory/main.go",
+   "match": [
+    "os.Exit(1)",
+    "log.Fatal(err)",
+    "os.Exit(2)"
+   ],
+   "kind": "llm",
+   "rules": [
+    "uber:exit-once",
+    "uber:exit-in-main"
+   ]
+  },
+  {
+   "id": "store-musttag",
+   "file": "internal/store/store.go",
+   "match": [
+    "json.Unmarshal(data, &itemsSlice)"
+   ],
+   "kind": "lint",
+   "rules": [
+    "uber:use-field-tags-in-marshaled-structs"
+   ]
+  },
+  {
+   "id": "store-func-order",
+   "file": "internal/store/store.go",
+   "match": [
+    "func (s *Store) loop()"
+   ],
+   "kind": "lint",
+   "optional": true,
+   "rules": [
+    "uber:function-grouping-and-ordering"
+   ]
+  },
+  {
+   "id": "notify-body-close",
+   "file": "internal/notify/notify.go",
+   "match": [
+    "defer resp.Body.Close()"
+   ],
+   "kind": "lint",
+   "optional": true,
+   "rules": [
+    "google-decisions:handle-errors"
+   ]
+  },
+  {
+   "id": "util-gofmt-simplify",
+   "file": "pkg/util/util.go",
+   "match": [
+    "for i, _ := range parts {"
+   ],
+   "kind": "lint",
+   "optional": true,
+   "rules": [
+    "google-guide:formatting",
+    "effective:formatting"
+   ]
+  },
+  {
+   "id": "util-max-retries-global",
+   "file": "pkg/util/util.go",
+   "match": [
+    "var MAX_RETRIES = 3"
+   ],
+   "kind": "lint",
+   "optional": true,
+   "rules": [
+    "uber:avoid-mutable-globals",
+    "google-practices:globals",
+    "google-practices:globals-forms"
+   ]
+  },
+  {
+   "id": "store-receiver-consistency",
+   "file": "internal/store/store.go",
+   "match": [
+    "func (s *Store) GetCount() int"
+   ],
+   "kind": "lint",
+   "optional": true,
+   "rules": [
+    "google-decisions:receiver-names"
+   ]
+  },
+  {
+   "id": "util-cache-unused",
+   "file": "pkg/util/util.go",
+   "match": [
+    "var cache = map[string]string{}"
+   ],
+   "kind": "lint",
+   "optional": true,
+   "rules": [
+    "google-guide:maintainability"
+   ]
+  },
+  {
+   "id": "notify-http-no-ctx",
+   "file": "internal/notify/notify.go",
+   "match": [
+    "n.client.Post(n.URL"
+   ],
+   "kind": "lint",
+   "optional": true,
+   "rules": [
+    "google-decisions:contexts"
+   ]
+  },
+  {
+   "id": "test-background-ctx",
+   "file": "internal/store/store_test.go",
+   "match": [
+    "s := New(context.Background())"
+   ],
+   "kind": "lint",
+   "optional": true,
+   "rules": [
+    "google-decisions:contexts"
+   ]
+  },
+  {
+   "id": "test-partial-compare",
+   "file": "internal/store/store_test.go",
+   "match": [
+    "assert.Equal(t, \"apple\", item.Name)"
+   ],
+   "kind": "llm",
+   "rules": [
+    "google-decisions:compare-full-structures"
+   ]
+  },
+  {
+   "id": "test-fatal-message",
+   "file": "internal/store/store_test.go",
+   "match": [
+    "t.Fatal(\"store is empty\")"
+   ],
+   "kind": "llm",
+   "optional": true,
+   "rules": [
+    "google-decisions:keep-going",
+    "google-decisions:identify-the-function",
+    "google-decisions:identify-the-input"
+   ]
+  },
+  {
+   "id": "store-save-unused-receiver",
+   "file": "internal/store/store.go",
+   "match": [
+    "func (s *Store) Save("
+   ],
+   "kind": "llm",
+   "optional": true,
+   "rules": [
+    "google-decisions:receiver-names"
+   ]
+  },
+  {
+   "id": "main-flag-var-name",
+   "file": "cmd/inventory/main.go",
+   "match": [
+    "path := flag.String("
+   ],
+   "kind": "llm",
+   "optional": true,
+   "rules": [
+    "google-decisions:flags"
+   ]
+  },
+  {
+   "id": "main-mustenv-late",
+   "file": "cmd/inventory/main.go",
+   "match": [
+    "util.MustEnv(\"INVENTORY_MODE\")"
+   ],
+   "kind": "llm",
+   "optional": true,
+   "rules": [
+    "google-decisions:must-functions",
+    "google-practices:program-init"
+   ]
+  }
+ ],
+ "negatives": [
+  {
+   "id": "main-blank-import-ok",
+   "file": "cmd/inventory/main.go",
+   "match": [
+    "_ \"net/http/pprof\""
+   ],
+   "tolerance": 0,
+   "rules": [
+    "google-decisions:import-blank",
+    "effective:blank_import"
+   ]
+  },
+  {
+   "id": "notify-receiver-ok",
+   "file": "internal/notify/notify.go",
+   "match": [
+    "func (n *Notifier) Post("
+   ],
+   "tolerance": 0,
+   "rules": [
+    "google-decisions:receiver-names"
+   ]
+  }
+ ]
+}

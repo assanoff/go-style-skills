@@ -1,0 +1,87 @@
+1	go-style-decisions	Go Style Decisions	3	
+2	about	About	23	
+2	naming	Naming	50	line-length
+3	underscores	Underscores	58	
+3	package-names	Package names	79	
+3	receiver-names	Receiver names	138	
+3	constant-names	Constant names	160	
+3	initialisms	Initialisms	209	
+3	getters	Getters	251	
+3	variable-names	Variable names	268	
+4	v	Single-letter variable names	335	
+3	repetition	Repetition	358	
+4	repetitive-with-package	Package vs. exported symbol name	375	
+4	repetitive-with-type	Variable name vs. type	394	
+4	repetitive-in-context	External context vs. local names	424	
+2	commentary	Commentary	507	
+3	comment-line-length	Comment line length	531	
+3	doc-comments	Doc comments	575	
+3	comment-sentences	Comment sentences	626	
+3	examples	Examples	664	
+3	named-result-parameters	Named result parameters	682	
+3	package-comments	Package comments	757	
+2	imports	Imports	831	
+3	import-renaming	Import renaming	837	TOC-Imports
+3	import-grouping	Import grouping	887	
+3	import-blank	Import "blank" (`import _`)	922	
+3	import-dot	Import "dot" (`import .`)	956	
+2	errors	Errors	993	
+3	returning-errors	Returning errors	997	
+3	error-strings	Error strings	1044	
+3	handle-errors	Handle errors	1076	
+3	in-band-errors	In-band errors	1110	
+3	indent-error-flow	Indent error flow	1170	
+2	language	Language	1235	
+3	literal-formatting	Literal formatting	1239	
+4	literal-field-names	Field names	1252	
+4	literal-matching-braces	Matching braces	1305	
+4	literal-cuddled-braces	Cuddled braces	1347	
+4	literal-repeated-type-names	Repeated type names	1405	
+4	literal-zero-value-fields	Zero-value fields	1450	
+3	nil-slices	Nil slices	1556	
+3	indentation-confusion	Indentation confusion	1652	
+3	func-formatting	Function formatting	1675	
+3	conditional-formatting	Conditionals and loops	1779	
+3	copying	Copying	1941	
+3	dont-panic	Don't panic	2002	
+3	must-functions	Must functions	2027	
+3	goroutine-lifetimes	Goroutine lifetimes	2115	
+3	interfaces	Interfaces	2216	
+3	generics	Generics	2264	
+3	pass-values	Pass values	2311	
+3	receiver-type	Receiver type	2330	
+3	switch-break	`switch` and `break`	2469	
+3	synchronous-functions	Synchronous functions	2530	
+3	type-aliases	Type aliases	2554	
+3	use-percent-q	Use %q	2567	
+3	use-any	Use any	2594	
+2	common-libraries	Common libraries	2603	
+3	flags	Flags	2607	
+3	logging	Logging	2662	
+3	contexts	Contexts	2693	
+4	custom-contexts	Custom contexts	2793	
+3	crypto-rand	crypto/rand	2812	
+2	useful-test-failures	Useful test failures	2847	
+3	assert	Assertion libraries	2863	
+3	identify-the-function	Identify the function	2967	
+3	identify-the-input	Identify the input	2976	
+3	got-before-want	Got before want	2986	
+3	compare-full-structures	Full structure comparisons	3003	
+3	compare-stable-results	Compare stable results	3048	
+3	keep-going	Keep going	3066	
+3	types-of-equality	Equality comparison and diffs	3121	
+3	level-of-detail	Level of detail	3203	
+3	print-diffs	Print diffs	3236	
+3	test-error-semantics	Test error semantics	3285	
+2	test-structure	Test structure	3335	
+3	subtests	Subtests	3339	
+4	subtest-names	Subtest names	3356	
+3	table-driven-tests	Table-driven tests	3435	
+4	table-tests-data-driven	Data-driven test cases	3562	
+4	table-tests-identifying-the-row	Identifying the row	3667	
+3	mark-test-helpers	Test helpers	3701	
+3	test-package	Test package	3747	
+4	test-same-package	Tests in the same package	3753	TOC-TestPackage
+4	test-different-package	Tests in a different package	3794	
+3	use-package-testing	Use package `testing`	3824	
+2	non-decisions	Non-decisions	3851	
