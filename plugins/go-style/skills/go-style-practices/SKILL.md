@@ -1,7 +1,7 @@
 ---
 name: go-style-practices
 description: Review Go code against the Google Go Style Best Practices (google.github.io/styleguide/go/best-practices): naming, package design, error structure and wrapping, documentation, declarations, option structs, test design, string building, global state and interfaces. golangci-lint plus reviewer subagents; every finding links to its best-practices section. Use when the user wants Google best-practice advice on Go code, APIs, errors or tests, or runs /go-style-practices.
-compatibility: Needs the go-style skill (the shared engine) in the same skills directory — the go-style plugin ships both — plus go, python3 and golangci-lint v2.
+compatibility: Needs the go-style skill (the shared engine) in the same skills directory — the go-style plugin ships both — plus go, python3 and golangci-lint v2.14+.
 argument-hint: "[./... | dirs | files] [--diff [base]] [--no-llm] [--no-tests]"
 ---
 

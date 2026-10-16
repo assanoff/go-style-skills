@@ -1,7 +1,7 @@
 ---
 name: go-style
 description: Review Go code against all the canonical Go style guides at once — Google Go Style Guide, Google Style Decisions, Google Best Practices, Effective Go and the Uber Go Style Guide — with Google taking priority, each problem reported once and linked to the exact guide section. Runs golangci-lint for the mechanical rules (mapped to guide sections) and parallel reviewer subagents for the judgement rules, then writes a report. Use whenever the user wants Go code, a package, a module, or a branch/diff reviewed, audited or checked for idiomatic style, readability, naming, doc comments, error handling or Go best practices, even if no guide is named. For a single guide prefer go-style-guide, go-style-decisions, go-style-practices, go-style-effective or go-style-uber.
-compatibility: Needs go, python3 and golangci-lint v2 (git for --diff).
+compatibility: Needs go, python3 and golangci-lint v2.14+ (git for --diff).
 argument-hint: "[./... | dirs | files] [--diff [base]] [--guides list] [--no-llm] [--no-tests]"
 ---
 

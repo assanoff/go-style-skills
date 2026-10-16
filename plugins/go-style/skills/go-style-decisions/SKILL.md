@@ -1,7 +1,7 @@
 ---
 name: go-style-decisions
 description: Review Go code or a diff against the Google Go Style Decisions (google.github.io/styleguide/go/decisions): naming, doc comments, imports, error handling, language usage, contexts and tests. golangci-lint covers the mechanical rules, reviewer subagents the rest; the report links every finding to its decisions section. Use when the user asks to check Go code against Google's style decisions or Google readability rules, or runs /go-style-decisions.
-compatibility: Needs the go-style skill (the shared engine) in the same skills directory — the go-style plugin ships both — plus go, python3 and golangci-lint v2.
+compatibility: Needs the go-style skill (the shared engine) in the same skills directory — the go-style plugin ships both — plus go, python3 and golangci-lint v2.14+.
 argument-hint: "[./... | dirs | files] [--diff [base]] [--no-llm] [--no-tests]"
 ---
 

@@ -1,4 +1,5 @@
-# golangci-lint v2 config of the go-style skills.
+# golangci-lint v2 config of the go-style skills. Needs golangci-lint v2.14+:
+# older releases reject some of the settings below or do not support Go 1.27.
 #
 # Every check enabled here backs a rule of one of the style guides: the rule
 # catalogs (../rules/<guide>/*.md) name it in their `lint=` keys, and

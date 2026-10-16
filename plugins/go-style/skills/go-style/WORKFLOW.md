@@ -46,6 +46,12 @@ inside a Go module). A missing golangci-lint is not fatal: the run continues
 without linters and says so; tell the user (`go install
 github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest`).
 
+The linter config needs golangci-lint v2.14 or newer. Older releases reject it
+(the linter run ends in an error such as `cannot find rule`) or, under a newer
+Go release than they support, cannot load packages: the linter finds nothing
+and the build errors point into the standard library. In either case suggest
+the same `go install` command — it builds golangci-lint with the user's own Go.
+
 ## 3. Review with subagents
 
 Skip this step when there are no tasks (`--no-llm`).
