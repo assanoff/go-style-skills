@@ -43,7 +43,7 @@ under `/plugin` → Marketplaces.
   Go, so it always supports your Go version:
   `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest`.
   Without golangci-lint the run continues with the review only.
-- `git` for `--diff`
+- `git` for `--diff`, `--staged` and `--unstaged`
 
 ## Skills
 
@@ -68,6 +68,8 @@ Run it from inside the Go module:
 /go-style:go-style ./internal/store/...    a subtree
 /go-style:go-style --diff                  only lines changed against the default branch
 /go-style:go-style --diff origin/release   … against another base
+/go-style:go-style --staged                only lines staged for the next commit
+/go-style:go-style --staged --unstaged     all uncommitted changes, untracked files too
 /go-style:go-style-decisions --no-llm      linters only: seconds, no subagents
 /go-style:go-style --guides google-decisions,uber --no-tests
 ```
@@ -75,7 +77,9 @@ Run it from inside the Go module:
 | Flag | Meaning |
 |---|---|
 | `--diff [BASE]` | review only lines changed since BASE (default: merge-base with the default branch) |
-| `--whole-files` | with `--diff`: report problems anywhere in the changed files |
+| `--staged` | review only lines changed in the index (`git diff --cached`) |
+| `--unstaged` | review only lines changed in the working tree against the index, untracked files whole; with `--staged`: all uncommitted changes |
+| `--whole-files` | with `--diff`, `--staged` or `--unstaged`: report problems anywhere in the changed files |
 | `--no-llm` | linters only: fast, deterministic, no subagents |
 | `--no-lint` | reviewers only |
 | `--no-tests` | leave `_test.go` files out |

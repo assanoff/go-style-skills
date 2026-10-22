@@ -439,41 +439,134 @@ def resolve_base(root: Path, base: str | None) -> str:
     return "HEAD"  # on the default branch itself: review uncommitted changes
 
 
-HUNK_RE = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
+HUNK_RE = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
+
+# Every git diff parsed here: no context, and the a/ b/ prefixes and paths from
+# the top of the repository whatever diff.noprefix, diff.mnemonicPrefix or
+# diff.relative say.
+DIFF_FLAGS = ("--unified=0", "--no-color", "--no-ext-diff", "--no-relative",
+              "--src-prefix=a/", "--dst-prefix=b/")
+
+# What a diff run reviews, as run.json keeps it in "changes_of".
+CHANGES_OF = {"base": "changed", "staged": "staged", "unstaged": "unstaged or untracked",
+              "uncommitted": "uncommitted"}
+
+Hunk = tuple[int, int, int, int]  # old start, old length, new start, new length
 
 
-def changed_lines(root: Path, base: str) -> dict[str, list[tuple[int, int]]]:
-    """Maps module-relative .go paths to changed line ranges (new side)."""
-    top = git(root, "rev-parse", "--show-toplevel")
-    if top is None:
-        die("--diff needs a git repository")
-    top = Path(top.strip())
-    out = git(root, "diff", "--unified=0", "--no-color", "--no-ext-diff", base, "--", "*.go")
-    changes: dict[str, list[tuple[int, int]]] = collections.defaultdict(list)
-    cur = None
-    for line in (out or "").splitlines():
-        if line.startswith("+++ "):
-            p = line[4:].strip()
-            cur = None if p == "/dev/null" else p[2:] if p.startswith("b/") else p
+def unquote_path(p: str) -> str:
+    """Returns a path as git diff prints it without the quotes git puts around
+    a name with unusual characters, or the tab after one with a space."""
+    p = p.removesuffix("\t")
+    if len(p) >= 2 and p[0] == p[-1] == '"':
+        # C-style escapes, octal for each byte of a non-ASCII character.
+        p = p[1:-1].encode("utf-8").decode("unicode_escape").encode("latin-1").decode("utf-8")
+    return p
+
+
+def parse_hunks(out: str) -> dict[str, list[Hunk]]:
+    """Maps the repository-relative paths (new side) in the output of git diff
+    --unified=0 to their hunks. A deleted file has none."""
+    hunks: dict[str, list[Hunk]] = collections.defaultdict(list)
+    cur, header = None, False
+    for line in out.splitlines():
+        if line.startswith("diff --git "):
+            cur, header = None, True
+            continue
+        if header and line.startswith("+++ "):
+            p = unquote_path(line[4:])
+            cur = None if p == "/dev/null" else p.removeprefix("b/")
             continue
         m = HUNK_RE.match(line)
-        if m and cur:
-            start, n = int(m.group(1)), int(m.group(2) or "1")
-            if n > 0:
-                changes[cur].append((start, start + n - 1))
-    untracked = git(root, "ls-files", "--others", "--exclude-standard", "--full-name",
-                    "--", "*.go")
-    for p in (untracked or "").splitlines():
-        if p.strip():
-            changes[p.strip()] = [(1, 10**9)]
+        if m:
+            header = False
+            if cur:
+                hunks[cur].append((int(m.group(1)), int(m.group(2) or "1"),
+                                   int(m.group(3)), int(m.group(4) or "1")))
+    return dict(hunks)
+
+
+def new_ranges(hunks: list[Hunk]) -> list[tuple[int, int]]:
+    """Returns the line ranges the hunks added or changed, on the new side."""
+    return [(c, c + d - 1) for _, _, c, d in hunks if d > 0]
+
+
+def index_to_worktree(ranges, hunks: list[Hunk]) -> list[tuple[int, int]]:
+    """Maps line ranges of the version of a file in the index onto the working
+    tree through hunks, those of git diff from the index to the working tree.
+    A line the working tree changed again is dropped; the others move by the
+    lines added and removed above them."""
+    # Spans of index lines that move by the same offset: (first, last, offset).
+    spans, pos, shift = [], 1, 0
+    for a, b, _, d in sorted(hunks):
+        if b > 0:  # lines a..a+b-1 replaced or removed
+            spans.append((pos, a - 1, shift))
+            pos = a + b
+        else:  # d lines inserted after line a
+            spans.append((pos, a, shift))
+            pos = a + 1
+        shift += d - b
+    spans.append((pos, 10**9, shift))
+    out = []
+    for s, e in ranges:
+        for lo, hi, sh in spans:
+            x, y = max(s, lo), min(e, hi)
+            if x <= y:
+                out.append((x + sh, y + sh))
+    return merge_ranges(out)
+
+
+def merge_ranges(ranges) -> list[tuple[int, int]]:
+    out: list[tuple[int, int]] = []
+    for a, b in sorted(ranges):
+        if out and a <= out[-1][1] + 1:
+            out[-1] = (out[-1][0], max(out[-1][1], b))
+        else:
+            out.append((a, b))
+    return out
+
+
+def changed_lines(root: Path, base: str | None = None, staged: bool = False,
+                  unstaged: bool = False) -> dict[str, list[tuple[int, int]]]:
+    """Maps module-relative .go paths to the line ranges of the working tree
+    that changed since base, untracked files whole; or else to those of the
+    staged changes, of the unstaged ones and the untracked files, or of both."""
+    top = git(root, "rev-parse", "--show-toplevel")
+    if top is None:
+        die("--diff, --staged and --unstaged need a git repository")
+    top = Path(top.strip())
+
+    def diff(*args) -> dict[str, list[Hunk]]:
+        return parse_hunks(git(root, "diff", *DIFF_FLAGS, *args, "--", "*.go") or "")
+
+    changes: dict[str, list[tuple[int, int]]] = collections.defaultdict(list)
+    if base is not None:
+        for p, hs in diff(base).items():
+            changes[p] += new_ranges(hs)
+    else:
+        worktree = diff()
+        if staged:
+            for p, hs in diff("--cached").items():
+                changes[p] += index_to_worktree(new_ranges(hs), worktree.get(p, []))
+        if unstaged:
+            for p, hs in worktree.items():
+                changes[p] += new_ranges(hs)
+    if base is not None or unstaged:
+        untracked = git(root, "ls-files", "-z", "--others", "--exclude-standard",
+                        "--full-name", "--", "*.go")
+        for p in (untracked or "").split("\0"):
+            if p:
+                changes[p] = [(1, 10**9)]
     result = {}
     for p, ranges in changes.items():
+        if not ranges:
+            continue  # every staged line changed again in the working tree
         abs_p = top / p
         try:
             rel = abs_p.resolve().relative_to(root.resolve())
         except ValueError:
             continue  # outside this module
-        result[rel.as_posix()] = ranges
+        result[rel.as_posix()] = merge_ranges(ranges)
     return result
 
 
@@ -800,17 +893,27 @@ def task_text(task: dict, run: dict) -> str:
 
 def cmd_prepare(args) -> None:
     guides = parse_guides(args.guides)
+    if args.diff is not None and (args.staged or args.unstaged):
+        die("--diff goes with neither --staged nor --unstaged; "
+            "--diff HEAD reviews all uncommitted changes")
     root, modpath = module_root(Path.cwd())
     files, patterns, n_generated, pkg_errors = collect_scope(root, args.targets,
                                                              not args.no_tests)
-    mode, base, changes = "full", None, {}
+    mode, base, changes, changes_of = "full", None, {}, None
     if args.diff is not None:
-        mode = "diff"
+        mode, changes_of = "diff", "base"
         base = resolve_base(root, args.diff or None)
         changes = changed_lines(root, base)
+    elif args.staged or args.unstaged:
+        mode = "diff"
+        changes_of = "uncommitted" if args.staged and args.unstaged else \
+            "staged" if args.staged else "unstaged"
+        changes = changed_lines(root, staged=args.staged, unstaged=args.unstaged)
+    if mode == "diff":
         files = [f for f in files if f.path in changes]
     if not files:
-        die("no Go files in scope" + (" (no changed .go files)" if mode == "diff" else ""))
+        die("no Go files in scope" +
+            (f" (no {CHANGES_OF[changes_of]} .go files)" if mode == "diff" else ""))
 
     stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
     label = guides_label(guides)
@@ -940,7 +1043,8 @@ def cmd_prepare(args) -> None:
     run = {
         "run_id": run_dir.name, "run_dir": str(run_dir), "created": stamp,
         "root": str(root), "module": modpath, "guides": guides, "mode": mode,
-        "base": base, "targets": args.targets or ["./..."], "patterns": patterns,
+        "base": base, "changes_of": changes_of,
+        "targets": args.targets or ["./..."], "patterns": patterns,
         "include_tests": not args.no_tests, "whole_files": args.whole_files,
         "changes": changes, "lint": lint_status, "build_errors": build_errors,
         "package_errors": pkg_errors, "generated_skipped": n_generated,
@@ -999,12 +1103,24 @@ def parse_guides(value: str) -> list[str]:
     return sorted(set(guides), key=lambda g: GUIDES[g].priority)
 
 
+def diff_scope(run: dict, code: bool = False) -> str:
+    """How a diff run names what it reviews: the changes against a commit, or
+    the staged, unstaged or uncommitted ones. Older runs have only a base."""
+    of = run.get("changes_of") or "base"
+    if of == "base":
+        sha = (run.get("base") or "")[:12]
+        return f"against `{sha}`" if code else f"against {sha}"
+    return {"staged": "of the staged changes",
+            "unstaged": "of the unstaged changes and untracked files",
+            "uncommitted": "of the uncommitted changes"}[of]
+
+
 def print_prepare_summary(run: dict, mapped: list, rules: list[Rule]) -> None:
     print(f"run: {run['run_dir']}")
     print(f"module: {run['module']} ({run['root']}) · guides: {', '.join(run['guides'])}")
     scope = f"mode: {run['mode']}"
     if run["mode"] == "diff":
-        scope += f" against {run['base'][:12]}"
+        scope += " " + diff_scope(run)
     print(f"{scope} · {run['files']} files, {run['lines']} lines "
           f"(generated skipped: {run['generated_skipped']})")
     lint = run["lint"]
@@ -1210,6 +1326,7 @@ def cmd_report(args) -> None:
         "summary": report_summary(run, verified),
         # The fields of a style report.
         "run": run["run_id"], "guides": guides, "mode": run["mode"],
+        "changes_of": run.get("changes_of") or ("base" if run["mode"] == "diff" else None),
         "health": run_health(run),
         "dropped_rules": sorted(run["dropped_rules"]),
         "findings": [dict(dataclasses.asdict(f), url=rules[f.rule]["url"],
@@ -1240,7 +1357,8 @@ def report_summary(run: dict, findings: list[Finding]) -> str:
     if h["build_errors"]:
         parts.append(f"{h['build_errors']} type-check errors")
     if run["mode"] == "diff":
-        parts.append("diff")
+        of = run.get("changes_of") or "base"
+        parts.append("diff" if of == "base" else of)
     return " · ".join(parts)
 
 
@@ -1406,7 +1524,7 @@ def render_report(run, rules, findings, unverified, skipped, rejected) -> str:
     sev_count = collections.Counter(f.severity for f in findings)
     src_count = collections.Counter(f.source for f in findings)
     target = ", ".join(run["targets"])
-    mode = "full" if run["mode"] == "full" else f"diff against `{(run['base'] or '')[:12]}`"
+    mode = "full" if run["mode"] == "full" else "diff " + diff_scope(run, code=True)
     out = [f"# Go style review — {title}", "",
            f"- **Target:** `{target}` in `{run['module']}` (`{run['root']}`)",
            f"- **Mode:** {mode} · **Commit:** `{run['commit'] or 'n/a'}` · "
@@ -1542,7 +1660,7 @@ def health_line(run: dict) -> str:
     if h["issues_under_other_guides"]:
         parts.append(f"{h['issues_under_other_guides']} linter issues under other guides")
     if not h["git"]:
-        parts.append("not a git checkout (no --diff)")
+        parts.append("not a git checkout (no --diff, --staged, --unstaged)")
     return " · ".join(parts)
 
 
@@ -1810,8 +1928,15 @@ def main() -> None:
     p.add_argument("--diff", nargs="?", const="", default=None, metavar="BASE",
                    help="review only lines changed since BASE (default: merge-base with "
                         "the default branch, or uncommitted changes on it)")
+    p.add_argument("--staged", action="store_true",
+                   help="review only lines changed in the index (git diff --cached)")
+    p.add_argument("--unstaged", action="store_true",
+                   help="review only lines changed in the working tree against the index "
+                        "(git diff), untracked files whole; with --staged: all "
+                        "uncommitted changes")
     p.add_argument("--whole-files", action="store_true",
-                   help="with --diff: report problems anywhere in the changed files")
+                   help="with --diff, --staged or --unstaged: report problems anywhere "
+                        "in the changed files")
     p.add_argument("--no-lint", action="store_true", help="skip golangci-lint")
     p.add_argument("--no-llm", action="store_true", help="linters only, no reviewer tasks")
     p.add_argument("--no-tests", action="store_true", help="leave _test.go files out")

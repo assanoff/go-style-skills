@@ -21,13 +21,17 @@ module. Flags:
 | flag | meaning |
 |---|---|
 | `--diff [BASE]` | review only lines changed since BASE (default: merge-base with the default branch; on the default branch itself, the uncommitted changes) |
-| `--whole-files` | with `--diff`: report problems anywhere in the changed files |
+| `--staged` | review only lines changed in the index (`git diff --cached`) |
+| `--unstaged` | review only lines changed in the working tree against the index, untracked files whole; with `--staged`: all uncommitted changes |
+| `--whole-files` | with `--diff`, `--staged` or `--unstaged`: report problems anywhere in the changed files |
 | `--no-llm` | linters only: fast, deterministic, no subagents |
 | `--no-lint` | reviewers only (golangci-lint missing or unwanted) |
 | `--no-tests` | leave `_test.go` files out |
 
-Translate a request in words into these ("check my branch" → `--diff`, "only
-the store package" → `./internal/store`). The calling skill fixes `--guides`;
+Translate a request in words into these ("check my branch" → `--diff`, "check
+what I staged" → `--staged`, "my uncommitted changes" → `--staged --unstaged`,
+"only the store package" → `./internal/store`). `--diff` goes with neither
+`--staged` nor `--unstaged`. The calling skill fixes `--guides`;
 only the combined `go-style` skill accepts a user-chosen subset. A topic focus
 ("errors and tests") does not narrow the run: review everything, then lead the
 answer with those topics.

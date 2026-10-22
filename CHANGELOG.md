@@ -5,6 +5,21 @@ Notable changes of the `go-style` plugin. The version is the one in
 [Semantic Versioning](https://semver.org/); the format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.0] - 2026-10-22
+
+### Added
+
+- `--staged` and `--unstaged`: review only the lines changed in the index, or
+  those changed in the working tree against it and the untracked files; both
+  together are all uncommitted changes. Staged lines are found in the working
+  tree, where the linters and reviewers read the code; a staged line changed
+  again since is left out.
+
+### Fixed
+
+- `--diff` reads the output of `git diff` whatever `diff.noprefix`,
+  `diff.mnemonicPrefix` or `diff.relative` say, and file names git quotes.
+
 ## [0.2.0] - 2026-10-16
 
 ### Changed

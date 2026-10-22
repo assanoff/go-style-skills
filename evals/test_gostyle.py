@@ -11,6 +11,8 @@ import importlib.util
 import io
 import json
 import os
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -169,6 +171,75 @@ class Diff(unittest.TestCase):
         finally:
             gs.git = orig
         self.assertEqual(got, {"x.go": [(11, 13), (23, 23)]})
+
+    def test_quoted_paths_and_added_lines_like_headers(self):
+        diff = ('diff --git "a/a\\303\\244 b.go" "b/a\\303\\244 b.go"\n'
+                '--- "a/a\\303\\244 b.go"\n+++ "b/a\\303\\244 b.go"\n'
+                "@@ -1 +1,2 @@\n-x\n+y\n+++ z\n"
+                "diff --git a/s p.go b/s p.go\n--- a/s p.go\t\n+++ b/s p.go\t\n"
+                "@@ -3,0 +4 @@\n+w\n")
+        self.assertEqual(gs.parse_hunks(diff),
+                         {"aä b.go": [(1, 1, 1, 2)], "s p.go": [(3, 0, 4, 1)]})
+
+    def test_index_to_worktree(self):
+        cases = [
+            ("insertion above", [(5, 6)], [(2, 0, 3, 2)], [(7, 8)]),
+            ("deletion above", [(5, 6)], [(1, 2, 0, 0)], [(3, 4)]),
+            ("line changed again", [(5, 6)], [(6, 1, 6, 1)], [(5, 5)]),
+            ("insertion at the top", [(1, 1)], [(0, 0, 1, 3)], [(4, 4)]),
+            ("insertion right after", [(5, 5)], [(5, 0, 6, 1)], [(5, 5)]),
+            ("hunk inside", [(3, 8)], [(5, 2, 5, 1)], [(3, 4), (6, 7)]),
+            ("below a hunk", [(2, 2)], [(7, 1, 7, 3)], [(2, 2)]),
+            ("all changed again", [(4, 4)], [(4, 1, 4, 1)], []),
+        ]
+        for name, ranges, hunks, want in cases:
+            with self.subTest(name):
+                self.assertEqual(gs.index_to_worktree(ranges, hunks), want)
+
+    @unittest.skipUnless(shutil.which("git"), "git not on PATH")
+    def test_staged_and_unstaged(self):
+        with tempfile.TemporaryDirectory() as d, \
+                mock.patch.dict(os.environ, {"GIT_CONFIG_GLOBAL": os.devnull,
+                                             "GIT_CONFIG_NOSYSTEM": "1"}):
+            top = Path(d)
+            mod = top / "mod"
+            mod.mkdir()
+
+            def git(*args):
+                subprocess.run(["git", "-c", "user.name=t", "-c", "user.email=t@t",
+                                *args], cwd=top, check=True, capture_output=True)
+
+            def write(path, lines):
+                (top / path).write_text("".join(f"{s}\n" for s in lines))
+
+            git("init", "-q")
+            # A config that would change the prefixes and paths of a plain git diff.
+            git("config", "diff.mnemonicPrefix", "true")
+            git("config", "diff.relative", "true")
+            lines = [f"line{i}" for i in range(1, 11)]
+            write("mod/x.go", lines)
+            write("other.go", ["a"])
+            git("add", ".")
+            git("commit", "-q", "-m", "init")
+
+            # The index: line 8 changed, a line inserted after line 9.
+            staged = lines[:7] + ["staged8", "line9", "staged-new", "line10"]
+            write("mod/x.go", staged)
+            write("mod/added.go", ["p", "q", "r"])
+            write("other.go", ["b"])
+            git("add", "mod/x.go", "mod/added.go", "other.go")
+            # The working tree: two lines on top, the inserted line changed again.
+            write("mod/x.go", ["u1", "u2"] + staged[:9] + ["again", "line10"])
+            write("mod/new.go", ["n"])
+
+            got = gs.changed_lines(mod, staged=True)
+            self.assertEqual(got, {"x.go": [(10, 10)], "added.go": [(1, 3)]})
+            got = gs.changed_lines(mod, unstaged=True)
+            self.assertEqual(got, {"x.go": [(1, 2), (12, 12)], "new.go": [(1, 10**9)]})
+            both = {"x.go": [(1, 2), (10, 10), (12, 12)], "added.go": [(1, 3)],
+                    "new.go": [(1, 10**9)]}
+            self.assertEqual(gs.changed_lines(mod, staged=True, unstaged=True), both)
+            self.assertEqual(gs.changed_lines(mod, "HEAD"), both)
 
 
 class Store(unittest.TestCase):
