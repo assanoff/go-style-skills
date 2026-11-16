@@ -13,8 +13,8 @@ boundaries, defer, channel sizes, enums, and modelling time with package `time`.
 - **skip:** out-parameters that must overwrite the caller's interface variable (an
   interface-typed `errors.As` target).
 - **example:** `func process(r *io.Reader)` -> `func process(r io.Reader)`
-- **note:** ptrToRefParam also flags pointers to maps and channels (google-decisions:pass-values
-  covers those).
+- **note:** ptrToRefParam also flags pointers to maps and channels, which are as rarely
+  needed; the linter config leaves out `*error`, the out-parameter of a deferred wrap.
 
 ### uber:verify-interface-compliance — Verify Interface Compliance
 - **meta:** severity=should · scope=decl · check=llm · conflicts=effective:blank_implements
@@ -126,13 +126,12 @@ boundaries, defer, channel sizes, enums, and modelling time with package `time`.
 - **example:** `func isActive(now, start, stop int) bool` -> `func isActive(now, start, stop time.Time) bool`
 
 ### uber:use-timeduration-for-periods-of-time/type — Use `time.Duration` for periods of time
-- **meta:** severity=should · scope=decl · check=lint+llm · lint=revive:time-naming · custom=int-duration-param
+- **meta:** severity=should · scope=decl · check=llm · custom=int-duration-param
 - **rule:** Represent periods as `time.Duration`, not integers, so the unit is unambiguous:
   `poll(10*time.Second)`, not `poll(10)` (seconds or milliseconds?).
 - **look for:** integer parameters or fields such as `delay`, `timeout`, `interval` or `ttl`,
   later converted with `time.Duration(x) * time.Millisecond`.
-- **skip:** `Duration` variables with unit suffixes (`timeoutSecs`) — revive reports them;
-  formats that cannot carry a Duration (external-systems rule).
+- **skip:** formats that cannot carry a Duration (external-systems rule).
 - **example:** `func poll(delay int)` -> `func poll(delay time.Duration)`
 
 ### uber:use-timeduration-for-periods-of-time/calendar-days — Use `time.Duration` for periods of time: Add vs AddDate

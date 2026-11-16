@@ -422,6 +422,60 @@ class ReviewerOutput(unittest.TestCase):
 
 
 class Linter(unittest.TestCase):
+    def test_goimports_repeating_gofmt_is_dropped(self):
+        def issue(linter, file, line):
+            return {"FromLinter": linter, "Pos": {"Filename": file, "Line": line}}
+
+        issues = [issue("gofmt", "a.go", 7), issue("goimports", "a.go", 7),
+                  issue("goimports", "a.go", 3), issue("goimports", "b.go", 7),
+                  issue("revive", "a.go", 7)]
+        kept = [(i["FromLinter"], i["Pos"]["Filename"], i["Pos"]["Line"])
+                for i in gs.without_goimports_twins(issues)]
+        self.assertEqual(kept, [("gofmt", "a.go", 7), ("goimports", "a.go", 3),
+                                ("goimports", "b.go", 7), ("revive", "a.go", 7)])
+
+    def test_every_enabled_check_backs_a_rule(self):
+        """The config runs nothing whose issues would be dropped: each linter,
+        and each check of the linters that are configured check by check, is
+        named by a lint key."""
+        named = {}
+        for r in gs.load_rules(None, []):
+            for k in r.lint:
+                named.setdefault(k.linter, set()).add(k.check)
+        self.assertEqual(sorted(gs.enabled_linters() - set(named)), [])
+        for linter, enabled in gs.config_checks().items():
+            if linter == "govet" or None in named.get(linter, {None}):
+                continue
+            self.assertEqual(sorted(enabled - named[linter]), [], linter)
+
+    def test_keys_tell_apart_what_the_guides_tell_apart(self):
+        rules = gs.load_rules(None, [])
+
+        def ids(linter, check, text):
+            return {r.id for r in gs.map_issue(rules, linter, check, text)}
+
+        # Effective Go writes make(chan int, 0) itself; a slice's repeated
+        # length is its own example of needless complexity.
+        self.assertNotIn("effective:allocation_make",
+                         ids("staticcheck", "S1019", "should use make(chan int) instead"))
+        self.assertIn("effective:allocation_make",
+                      ids("staticcheck", "S1019", "should use make([]int, n) instead"))
+        # A package of integration tests may have underscores.
+        name = 'don\'t use package name "{}" that contains an underscore'
+        self.assertEqual(ids("revive", "package-naming", name.format("a_b_test")), set())
+        self.assertIn("google-decisions:package-names/form",
+                      ids("revive", "package-naming", name.format("a_b")))
+        # Only Uber sends exits to main; a panic is another rule's matter.
+        exits = "calls to {} only in main() or init() functions"
+        self.assertEqual(ids("revive", "deep-exit", exits.format("os.Exit")),
+                         {"uber:exit-in-main"})
+        self.assertEqual(ids("revive", "deep-exit", exits.format("log.Panicln")), set())
+        # Missing doc comment: a must. Its form: a should.
+        self.assertIn("google-decisions:doc-comments/exported", ids(
+            "revive", "exported", "exported function F should have comment or be unexported"))
+        self.assertIn("google-decisions:doc-comments/form", ids(
+            "revive", "exported", 'comment on exported function F should be of the form "F ..."'))
+
     def test_too_old(self):
         line = "golangci-lint has version {} built with go1.27.2 from (unknown)"
         for version, old in [("1.64.8", True), ("v1.64.8", True), ("2.13.4", True),

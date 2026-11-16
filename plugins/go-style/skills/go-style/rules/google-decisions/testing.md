@@ -256,7 +256,8 @@ package `testing`).
 - **look for:** fixture methods that keep a `*testing.T` field and fail through it without
   calling `Helper()` (thelper checks only parameters); validators dressed up as helpers.
 - **skip:** missing `t.Helper()` and parameter order, which thelper reports (its parameter
-  name check is outside this rule); `Test*` functions and `t.Run` closures.
+  name check is outside this rule); `Test*` functions, `t.Run` closures and the `testX`
+  functions a test runs as its body, which are not helpers.
 - **example:** `func readFile(name string, t *testing.T) string` -> `func readFile(t *testing.T, name string) string { t.Helper(); ... }`
 
 ### google-decisions:test-same-package — Tests in the same package

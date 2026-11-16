@@ -273,7 +273,7 @@ Language-level decisions: composite literal layout, nil slices, where not to bre
   `wg.Add(1); go func() { defer wg.Done(); process(ctx, item) }()` plus `wg.Wait()`
 
 ### google-decisions:interfaces/real-need — Interfaces: real need, consumer-owned, small
-- **meta:** severity=should · scope=decl · check=lint+llm · lint=iface~unused,interfacebloat · overlaps=google-guide:simplicity
+- **meta:** severity=should · scope=decl · check=lint+llm · lint=interfacebloat · overlaps=google-guide:simplicity
 - **rule:** Avoid creating interfaces until a real need exists; model required behavior, not
   named patterns ("service", "repository"). Do not wrap RPC clients in manual interfaces just
   for abstraction or testing, and do not export test doubles or back doors solely for tests.
@@ -283,22 +283,24 @@ Language-level decisions: composite literal layout, nil slices, where not to bre
 - **look for:** an exported interface next to its only implementation; `XService` /
   `XRepository` interfaces mirroring a struct's methods; interfaces over generated RPC
   clients; exported fakes in non-test packages; undocumented interface contracts.
-- **skip:** interfaces unused in their own package (iface unused) and ones with over 10
-  methods (interfacebloat) are reported by linters; interfaces that are the product; test
+- **skip:** interfaces with over 10 methods — interfacebloat reports them; interfaces
+  that are the product (no linter can tell one from a leftover: judge by who implements
+  and who consumes it); test
   doubles in a package dedicated to them (like `spannertest`), which the guide accepts
   where testing against the real implementation is impractical.
 - **example:** exported `UserService` beside its only implementation -> consumer-side interface
 
 ### google-decisions:interfaces/return-concrete — Interfaces: accept interfaces, return concrete types
-- **meta:** severity=should · scope=decl · check=lint+llm · lint=iface~opaque
+- **meta:** severity=should · scope=decl · check=lint+llm · lint=iface~single concrete implementation of '\*?([\w./-]+\.)?[A-Z]
 - **rule:** Functions should take interfaces as arguments but return concrete types, so callers
   get every exported method and field and can still pass the result on as an interface.
   Returning an interface is acceptable for encapsulation (e.g. `error`) and for command,
   chaining, factory and strategy patterns.
 - **look for:** exported functions returning an interface where the concrete type would serve
-  callers better and none of the listed patterns applies.
-- **skip:** a function that always returns one concrete type behind an interface — iface
-  opaque reports it; `error` results; factories choosing among implementations.
+  callers better and none of the listed patterns applies, such as a constructor returning
+  an interface over its one unexported implementation with nothing to encapsulate.
+- **skip:** a function that always returns one exported concrete type behind an interface
+  — iface opaque reports it; `error` results; factories choosing among implementations.
 - **note:** `ireturn` flags every interface return and needs allow-lists for the exceptions.
 - **example:** `func NewStore() Store { return &store{} }` -> `func NewStore() *Store`
 
@@ -318,28 +320,32 @@ Language-level decisions: composite literal layout, nil slices, where not to bre
 - **example:** `type Stack[T any]` used only as `Stack[Job]` -> `type jobStack []Job`
 
 ### google-decisions:pass-values — Pass values
-- **meta:** severity=should · scope=body · check=lint+llm · lint=gocritic:ptrToRefParam · custom=ptr-param-deref-only
+- **meta:** severity=should · scope=body · check=llm · custom=ptr-param-deref-only
 - **rule:** Do not pass pointers as arguments just to save a few bytes: if a function reads its
   argument only as `*x`, take the value. Common cases are `*string` and pointers to interfaces
   (`*io.Reader`), whose values are fixed-size anyway. This does not apply to large structs or
   small structs that may grow; pass protocol buffer messages by pointer.
-- **look for:** `*string`, `*int`, `*bool` or small-struct pointer parameters that are only
-  dereferenced — never written through, nil-checked, or passed on as pointers.
-- **skip:** pointers to interfaces, maps or channels — gocritic ptrToRefParam reports them;
-  nil-means-absent optional parameters; out-parameters; proto messages.
+- **look for:** `*string`, `*int`, `*bool`, small-struct or interface pointer parameters
+  (`*io.Reader`) that are only dereferenced — never written through, nil-checked, or
+  passed on as pointers.
+- **skip:** nil-means-absent optional parameters; out-parameters, such as the `errp *error`
+  of a deferred wrap; proto messages.
 - **example:** `func greet(name *string) { fmt.Println(*name) }` -> `func greet(name string)`
 
 ### google-decisions:receiver-type/must-pointer — Receiver type: when a pointer is required
-- **meta:** severity=must · scope=body · check=lint+llm · lint=revive:modifies-value-receiver,staticcheck:SA4005
+- **meta:** severity=must · scope=body · check=lint+llm · lint=staticcheck:SA4005
 - **rule:** Correctness wins over speed or simplicity. A method that mutates its receiver,
   including reslicing or reassigning a slice receiver, must have a pointer receiver; so must
   methods of a struct holding fields that cannot safely be copied (`sync.Mutex` and other
   synchronization types; check the field type's godoc).
-- **look for:** value receivers reassigned as a whole (`q = append(q, x)`); value receivers
-  on structs with non-lock uncopyable fields such as `bytes.Buffer`.
-- **skip:** field assignments through a value receiver (revive modifies-value-receiver,
-  staticcheck SA4005); value receivers on structs with locks (govet copylocks); element writes
-  through slice or map value receivers, which the caller sees.
+- **look for:** value receivers reassigned as a whole (`q = append(q, x)`); a field set
+  through a value receiver that the caller expects to see, where the method also reads it
+  and so escapes the linter; value receivers on structs with non-lock uncopyable fields
+  such as `bytes.Buffer`.
+- **skip:** a field assignment through a value receiver that is never read (staticcheck
+  SA4005); a method that changes its own copy on purpose and uses or returns it; value
+  receivers on structs with locks (govet copylocks); element writes through slice or map
+  value receivers, which the caller sees.
 - **example:** `func (c Counter) Inc() { c.n++ }` -> `func (c *Counter) Inc() { c.n++ }`
 
 ### google-decisions:receiver-type/choice — Receiver type: value or pointer
@@ -396,14 +402,15 @@ Language-level decisions: composite literal layout, nil slices, where not to bre
   `type userMap map[string]*User`
 
 ### google-decisions:use-percent-q — Use %q
-- **meta:** severity=should · scope=body · check=lint+llm · lint=gocritic:sprintfQuotedString · custom=manual-quote-verb
+- **meta:** severity=should · scope=body · check=lint+llm · lint=gocritic:sprintfQuotedString~use %q instead · custom=manual-quote-verb
 - **rule:** Prefer the `%q` verb to quoting a string by hand with `"%s"` or `'%s'`, especially in
   output meant for humans where the value may be empty or contain control characters: a
   quoted `""` stands out where an empty string would vanish.
 - **look for:** `\"%s\"`, `'%s'` or `"%v"` around values in `Printf`, `Errorf`, logger and
   `t.Errorf`-style calls.
-- **skip:** `fmt.Sprintf` with `"%s"` or `` `%s` `` — gocritic sprintfQuotedString reports
-  it; machine-readable output that needs a specific quoting (SQL, shell, CSV).
+- **skip:** `fmt.Sprintf` with `"%s"` — gocritic sprintfQuotedString reports it;
+  `` `%s` `` (the guide does not ask for `%#q`); machine-readable output that needs a
+  specific quoting (SQL, shell, CSV, generated code).
 - **example:** `fmt.Printf("value \"%s\" looks like English text", someText)` ->
   `fmt.Printf("value %q looks like English text", someText)`
 

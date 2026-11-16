@@ -4,23 +4,33 @@ Effective Go on small interfaces, type assertions, exporting interfaces instead 
 implementation types, uses of the blank identifier, and embedding.
 
 ### effective:interfaces — Interfaces
-- **meta:** severity=consider · scope=decl · check=lint+llm · lint=interfacebloat · overlaps=google-decisions:interfaces,google-practices:designing-effective-interfaces
+- **meta:** severity=consider · scope=decl · check=llm · overlaps=google-decisions:interfaces,google-practices:designing-effective-interfaces
 - **rule:** An interface specifies behavior: if something can do this, it can be used
   here. Interfaces with only one or two methods are common and are usually named
   after the method (`io.Writer` for `Write`); a type can implement several
   interfaces at once (`sort.Interface` plus a `String` method).
 - **look for:** interfaces bundling many methods whose users need only one or two.
-- **skip:** interfaces with more than 10 methods — interfacebloat reports them.
+- **skip:** a large interface as such: the guide calls small ones common and sets no
+  limit.
 
 ### effective:interface_conversions — Interface conversions and type assertions
-- **meta:** severity=should · scope=body · check=lint · lint=forcetypeassert
+- **meta:** severity=consider · scope=body · check=llm
 - **rule:** A type assertion `value.(T)` crashes the program with a run-time error if
-  the value doesn't hold a `T`. Guard it with the comma-ok form
-  (`str, ok := value.(string)`; on failure `str` is the zero value) or use a type
-  switch. The target may be a concrete type or another interface the value can be
-  converted to.
-- **skip:** assertions meant to panic on failure, such as the re-panic idiom
-  `err = e.(Error)` in the guide's recover example.
+  the value doesn't hold a `T`. Where the type is known, the plain form is fine
+  (`str := value.(string)` "to extract the string we know is in the value"); to
+  guard against the other case use the comma-ok form (`str, ok := value.(string)`;
+  on failure `str` is the zero value) or a type switch. The target may be a concrete
+  type or another interface the value can be converted to.
+- **look for:** a single-result assertion on a value that comes from outside the
+  function's control — a decoded payload, a `context.Value`, a plugin or callback
+  argument, a `sync.Map` or `any` filled elsewhere — where a wrong type would crash
+  the program.
+- **skip:** assertions whose type is fixed by construction (inside the matching
+  `case` of a switch on the kind, on a value the same function just built);
+  assertions meant to panic on failure, such as the re-panic idiom `err = e.(Error)`
+  in the guide's recover example.
+- **note:** uber:handle-type-assertion-failures asks for comma-ok always; the
+  forcetypeassert linter reports under that rule.
 - **example:** `str := value.(string)` -> `str, ok := value.(string); if !ok { ... }`
 
 ### effective:generality — Generality
@@ -45,9 +55,9 @@ implementation types, uses of the blank identifier, and embedding.
   ignore an error: always check error returns — they are provided for a reason.
 - **look for:** errors discarded with `_` (`fi, _ := os.Stat(path)`) and the other
   result then used.
-- **skip:** error results ignored without any assignment — errcheck reports them (and
-  `_` discards too when its check-blank option is on); calls documented never to fail
-  (`bytes.Buffer.Write`, `strings.Builder.WriteString`, `hash.Hash.Write`).
+- **skip:** error results ignored with or without `_` — errcheck reports both; calls
+  documented never to fail (`bytes.Buffer.Write`, `strings.Builder.WriteString`,
+  `hash.Hash.Write`).
 - **example:** `fi, _ := os.Stat(path)` -> `fi, err := os.Stat(path); if err != nil { return err }`
 - **note:** The guide's `os.IsNotExist(err)` does not see wrapped errors; use
   `errors.Is(err, fs.ErrNotExist)`.

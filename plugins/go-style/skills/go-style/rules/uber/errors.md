@@ -3,7 +3,7 @@
 How Uber declares, wraps, names and handles errors, plus type-assertion failures and panics.
 
 ### uber:error-types/matching — Error Types: support matching
-- **meta:** severity=should · scope=body · check=lint+llm · lint=errorlint~comparing with, errorlint~(type assertion|type switch) · custom=error-string-match · overlaps=google-practices:error-structure
+- **meta:** severity=should · scope=body · check=llm · custom=error-string-match · overlaps=google-practices:error-structure
 - **rule:** Decide whether callers need to match the error. If they do, support `errors.Is` and
   `errors.As`: a top-level `var ErrX = errors.New(...)` for a static message, a custom error
   type for a dynamic one. Exported error variables and types become part of the package's
@@ -12,8 +12,21 @@ How Uber declares, wraps, names and handles errors, plus type-assertion failures
   a sign the producer should expose a sentinel or type; failure modes callers must tell apart
   returned as ad-hoc `errors.New`/`fmt.Errorf` values; exported error values or types nobody
   matches.
-- **skip:** `==` comparisons and type assertions or switches on errors — errorlint reports them.
+- **skip:** `==` comparisons and type assertions or switches on errors — errorlint reports
+  them under uber:error-types/is-as.
 - **example:** `return errors.New("could not open")` -> `return ErrCouldNotOpen`, matched with `errors.Is(err, foo.ErrCouldNotOpen)`
+
+### uber:error-types/is-as — Error Types: match with errors.Is and errors.As
+- **meta:** severity=consider · scope=body · check=lint · lint=errorlint~comparing with, errorlint~(type assertion|type switch|switch on an error) · conflicts=google-practices:error-structure
+- **rule:** The guide matches errors with `errors.Is` and `errors.As` in all its examples: a
+  comparison with `==`, a `switch` on the error or a type assertion stops matching once
+  some function on the way wraps the error.
+- **skip:** reviewers skip it — errorlint reports comparisons, switches and type assertions
+  on errors.
+- **note:** a hint, not a stated rule: the guide asks producers to support `errors.Is` and
+  `errors.As` and does not forbid `==`. Google's best practices call `==` against a sentinel
+  "perfectly adequate in many cases", so a run that includes them leaves this out.
+- **example:** `if err == foo.ErrCouldNotOpen` -> `if errors.Is(err, foo.ErrCouldNotOpen)`
 
 ### uber:error-types/constructor — Error Types: errors.New or fmt.Errorf
 - **meta:** severity=consider · scope=body · check=lint+llm · lint=perfsprint~errors\.New, staticcheck:S1028 · conflicts=google-decisions:non-decisions
@@ -27,7 +40,7 @@ How Uber declares, wraps, names and handles errors, plus type-assertion failures
   the author.
 
 ### uber:error-wrapping/verb — Error Wrapping: %w or %v
-- **meta:** severity=should · scope=body · check=lint+llm · lint=errorlint~non-wrapping format verb · conflicts=google-practices:error-extra-info
+- **meta:** severity=should · scope=body · check=llm · conflicts=google-practices:error-extra-info
 - **rule:** When adding context with `fmt.Errorf`, choose the verb by whether callers should be
   able to match and extract the cause. `%w`, a good default for most wrapped errors, lets them
   use `errors.Is`/`errors.As` and they may come to rely on it, so when the wrapped error is a
@@ -36,23 +49,25 @@ How Uber declares, wraps, names and handles errors, plus type-assertion failures
 - **look for:** `%w` exposing a dependency's sentinel or type that is neither documented nor
   tested; `fmt.Errorf("...: %s", err.Error())`, which drops the chain without a deliberate
   choice.
-- **skip:** `%v` chosen on purpose to hide internals (errorlint flags every `%v`/`%s` applied
-  to an error, intended or not).
+- **skip:** `%v` chosen on purpose to hide internals — the guide offers both verbs, so
+  `%v` alone is not a finding.
 - **note:** Google's best practices treat `%v` as the plain-annotation default and `%w` as a
   deliberate opt-in; in multi-guide runs Google's guidance wins.
 
 ### uber:error-wrapping/context — Error Wrapping: succinct context
-- **meta:** severity=should · scope=body · check=llm · custom=errorf-failed-prefix · overlaps=google-practices:error-extra-info
+- **meta:** severity=should · scope=body · check=lint+llm · lint=revive:string-format · custom=errorf-failed-prefix · overlaps=google-practices:error-extra-info
 - **rule:** Return the error as is when there is no context to add. Otherwise add context ("call
   service foo: connection refused") and keep it succinct: avoid phrases like "failed to" that
   state the obvious and pile up as the error moves up the stack ("failed to x: failed to y:
   ..."). Once an error is sent to another system, such as logs, make it clear it is an error
   (an `err` tag, a "Failed" prefix).
-- **look for:** wrap messages starting with "failed to", "error" or "unable to"; wraps that add
-  nothing (`fmt.Errorf("%w", err)`, `"error: %w"`).
-- **skip:** log lines and other messages leaving the process; root errors with no wrapped cause;
-  a package that consistently wraps with "failed to …" — report the convention once as a
-  package-level note, not every instance (local consistency, google-guide:local-consistency).
+- **look for:** wraps the linter does not see that state the obvious: "error doing x: %w",
+  "failed to" in the middle of a message, wraps made with a helper (`errors.Wrap`,
+  `errors.Join`).
+- **skip:** log lines and other messages leaving the process; root errors with no wrapped
+  cause; `fmt.Errorf` wraps that open with "failed to", "unable to", "could not" or
+  "couldn't", and wraps that are only `%w`, `failed: %w` or `error: %w` — revive
+  string-format reports them.
 - **example:** `fmt.Errorf("failed to create new store: %w", err)` -> `fmt.Errorf("new store: %w", err)`
 
 ### uber:error-naming — Error Naming
@@ -75,10 +90,13 @@ How Uber declares, wraps, names and handles errors, plus type-assertion failures
 - **example:** `log.Printf("could not get user %q: %v", id, err); return err` -> `return fmt.Errorf("get user %q: %w", id, err)`
 
 ### uber:handle-type-assertion-failures — Handle Type Assertion Failures
-- **meta:** severity=must · scope=body · check=lint · lint=forcetypeassert · overlaps=effective:interface_conversions
+- **meta:** severity=must · scope=body · check=lint · lint=forcetypeassert · conflicts=effective:interface_conversions
 - **rule:** The single-value form of a type assertion panics on the wrong type, so always use the
   "comma ok" idiom and handle the failure gracefully.
 - **skip:** type switches.
+- **note:** Effective Go writes the single-value form where the type is known
+  (`str := value.(string)`), so a run that includes it leaves this rule out; the linter
+  config leaves tests out, where a panic fails the test.
 - **example:** `t := i.(string)` -> `t, ok := i.(string); if !ok { /* handle */ }`
 
 ### uber:dont-panic/production — Don't Panic: production code

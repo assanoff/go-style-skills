@@ -93,17 +93,20 @@ interfaces, package-level (global) state, and interfaces.
 - **example:** `var registry = map[string]*Plugin{}; func Register(...)` -> `type Registry struct{...}; func New() *Registry; func (r *Registry) Register(...)`
 
 ### google-practices:globals-forms — Major forms of package state APIs
-- **meta:** severity=should · scope=repo · check=lint+llm · lint=gochecknoglobals
+- **meta:** severity=should · scope=repo · check=lint+llm · lint=reassign
 - **rule:** Apply extreme scrutiny to these forms of package state: top-level variables
   (exported or not), a service locator held in a global, registries of callbacks and
   similar behaviours, and thick-client singletons for backends, storage, data access and
   other resources. Legacy APIs, even in the standard library, that are configured through
   globals are no precedent for new code.
-- **look for:** which gochecknoglobals reports hold mutable state: `var hooks []func()` with
-  an `OnX(f)` registrar, a lazily initialised `var client *C` behind `func Client() *C`;
+- **look for:** package-level variables that hold mutable state: `var hooks []func()` with
+  an `OnX(f)` registrar, a lazily initialised `var client *C` behind `func Client() *C`, an
+  exported variable that clients or tests set to change behaviour (`pkg.Verbose = true`);
   `init()` functions registering into another package's global registry.
 - **skip:** globals that pass globals-litmus-tests (logically constant tables, private
-  caches); fixtures in `_test.go` files (t-custom-main, t-setup-amortization); `package main`.
+  caches); fixtures in `_test.go` files (t-custom-main, t-setup-amortization); `package main`;
+  an assignment to another package's variable — reassign reports it at the write (not
+  `flag.Usage`, which is meant to be set).
 - **example:** `var unhealthyFuncs []func(); func OnUnhealthy(f func())` -> a `Health` type with an `OnUnhealthy` method
 
 ### google-practices:globals-litmus-tests — Litmus tests
@@ -163,7 +166,7 @@ interfaces, package-level (global) state, and interfaces.
   dedicated `xxxtest` package; interfaces with a material need for substitution.
 
 ### google-practices:interface-ownership-and-visibility — Interface ownership and visibility
-- **meta:** severity=should · scope=decl · check=lint+llm · lint=iface~declared but not used,iface~declared on interface · custom=exported-internal-interface · overlaps=google-decisions:interfaces
+- **meta:** severity=should · scope=decl · check=lint+llm · lint=iface~declared on interface '[a-z] · custom=exported-internal-interface · overlaps=google-decisions:interfaces
 - **rule:** Keep an interface unexported if only the package's own logic uses it; exporting
   commits you to maintaining it for external callers. Interfaces generally belong to the
   consumer, which lists only the methods it uses. A producer exports the interface when the
@@ -171,9 +174,11 @@ interfaces, package-level (global) state, and interfaces.
   service, possibly in its own implementation-free package), to spare many packages from
   mirroring identical interfaces, or to break an import cycle.
 - **look for:** an interface declared beside its only implementation and returned by its
-  constructor; exported interfaces used only inside their package; consumer interfaces
-  listing methods the consumer never calls.
-- **skip:** packages whose purpose is the protocol; generated code.
+  constructor; exported interfaces used only inside their package; exported consumer
+  interfaces listing methods the consumer never calls.
+- **skip:** packages whose purpose is the protocol; generated code; a method of an
+  unexported interface that its package never calls — iface reports it (for an exported
+  interface it cannot tell a protocol from a leftover, so that is left to you).
 - **example:** `package storage; type Store interface{...}; type store struct{...}` -> concrete `storage.Store`; consumers declare `type userGetter interface{ Get(...) }`
 
 ### google-practices:designing-effective-interfaces/small — Designing effective interfaces: keep them small
@@ -200,7 +205,7 @@ interfaces, package-level (global) state, and interfaces.
 - **example:** `type Store interface { Get(key string) ([]byte, error) }` -> `// Get returns the value for key, or ErrNotFound if ...` above `Get`
 
 ### google-practices:designing-effective-interfaces/return-concrete — Designing effective interfaces: return concrete types
-- **meta:** severity=should · scope=decl · check=lint+llm · lint=iface~single concrete implementation · overlaps=google-decisions:interfaces
+- **meta:** severity=should · scope=decl · check=lint+llm · lint=iface~single concrete implementation of '\*?([\w./-]+\.)?[A-Z] · overlaps=google-decisions:interfaces
 - **rule:** Accept interfaces, return concrete types, so callers can use the whole value
   without being locked into one abstraction. Return an interface when it encapsulates
   something whose extra methods would let callers break integrity or would block changing
@@ -208,7 +213,10 @@ interfaces, package-level (global) state, and interfaces.
   picks one of several concrete types at run time (factory, strategy, command, chaining
   APIs), or when returning the concrete type would create an import cycle (often a sign of
   badly split packages).
-- **look for:** which iface reports lack an encapsulation or cycle reason; interfaces declared
-  only so that `New` can return them.
-- **skip:** `error` results; factories returning different types per branch.
+- **look for:** a constructor returning an interface over one unexported implementation
+  with no encapsulation or cycle reason; interfaces declared only so that `New` can return
+  them.
+- **skip:** `error` results; factories returning different types per branch; a function
+  returning an interface over one exported concrete type — iface reports it (encapsulation
+  cannot be the reason there).
 - **example:** `func NewStore() Store { return &store{} }` -> `func NewStore() *Store`

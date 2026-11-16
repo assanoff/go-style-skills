@@ -485,9 +485,24 @@
    "match": [
     "\"failed to post notification: %w\""
    ],
-   "kind": "llm",
+   "kind": "lint",
    "rules": [
+    "google-practices:error-extra-info",
     "uber:error-wrapping"
+   ]
+  },
+  {
+   "id": "notify-blank-error",
+   "file": "internal/notify/notify.go",
+   "match": [
+    "resp, _ := n.client.Head(n.URL)"
+   ],
+   "kind": "lint",
+   "rules": [
+    "google-decisions:handle-errors",
+    "google-practices:error-handling",
+    "effective:blank_assign",
+    "uber:linting"
    ]
   },
   {
@@ -520,10 +535,11 @@
    "match": [
     "switch true {"
    ],
-   "kind": "lint",
+   "kind": "llm",
    "rules": [
     "effective:switch"
-   ]
+   ],
+   "optional": true
   },
   {
    "id": "notify-defaultsettings-doc",
@@ -595,7 +611,7 @@
    "match": [
     "var cache = map[string]string{}"
    ],
-   "kind": "lint",
+   "kind": "llm",
    "rules": [
     "uber:avoid-mutable-globals",
     "google-practices:globals",
@@ -622,7 +638,7 @@
    "match": [
     "func init() {"
    ],
-   "kind": "lint",
+   "kind": "llm",
    "rules": [
     "uber:avoid-init",
     "uber:no-goroutines-in-init"
@@ -722,7 +738,7 @@
     "os.Exit(1)",
     "func MustEnv(key string) string"
    ],
-   "kind": "lint",
+   "kind": "llm",
    "tolerance": 6,
    "rules": [
     "uber:exit-in-main",
@@ -980,6 +996,20 @@
    "tolerance": 0,
    "rules": [
     "google-decisions:receiver-names"
+   ]
+  },
+  {
+   "id": "notify-commented-discard-ok",
+   "file": "internal/notify/notify.go",
+   "match": [
+    "count, _ := strconv.Atoi(header)"
+   ],
+   "tolerance": 0,
+   "rules": [
+    "google-decisions:handle-errors",
+    "google-practices:error-handling",
+    "effective:blank_assign",
+    "uber:linting"
    ]
   }
  ]

@@ -4,7 +4,7 @@ How to apply the naming guidance to function and method names, test double packa
 shadowing, and uninformative package names.
 
 ### google-practices:function-name-repetition — Avoid repetition in function and method names
-- **meta:** severity=consider · scope=decl · check=lint+llm · lint=revive:exported~(stutters|is repetitive) · custom=name-repeats-context · overlaps=google-decisions:repetitive-with-package, google-decisions:repetitive-in-context
+- **meta:** severity=consider · scope=decl · check=lint+llm · lint=revive:exported~func name will be used as .*(stutters|is repetitive) · custom=name-repeats-context · overlaps=google-decisions:repetitive-with-package, google-decisions:repetitive-in-context
 - **rule:** Choose names for how they read at the call site. Usually omit the types of inputs and
   outputs (when there is no collision), the receiver type and pointer-ness; do not repeat the
   package name (functions), the receiver name (methods), parameter names, or the names and types
@@ -12,8 +12,8 @@ shadowing, and uninformative package names.
 - **look for:** package or domain words inside function names (`yamlconfig.ParseYAMLConfig`);
   the receiver type in method names (`(c *Config) WriteConfigTo`); names spelling out parameters
   or results (`OverrideFirstWithSecond(dest, source)`, `TransformToJSON(...) *jsonconfig.Config`).
-- **skip:** exported names that start with the package name — revive reports them;
-  disambiguating pairs (`WriteTextTo`/`WriteBinaryTo`); type-suffixed variants (`ParseInt64`).
+- **skip:** exported functions whose name starts with the package name — revive reports
+  them; disambiguating pairs (`WriteTextTo`/`WriteBinaryTo`); type-suffixed variants (`ParseInt64`).
 - **example:** `func (c *Config) WriteConfigTo(w io.Writer)` -> `func (c *Config) WriteTo(w io.Writer)`
 
 ### google-practices:function-name-conventions — Noun, verb and type-suffix naming conventions
@@ -84,7 +84,7 @@ shadowing, and uninformative package names.
 - **example:** `var cc creditcardtest.Spy` -> `var spyCC creditcardtest.Spy`
 
 ### google-practices:shadowing — Shadowing with := in a nested scope
-- **meta:** severity=should · scope=body · check=lint+llm · lint=govet:shadow~declaration of "(?!err")
+- **meta:** severity=should · scope=body · check=llm
 - **rule:** Reusing a variable with `:=` in the same scope ("stomping") is fine when the old value
   is no longer needed. In a new block, `:=` declares a new variable that shadows the outer one, and
   code after the block still sees the original — the classic bug is a conditional
@@ -93,19 +93,22 @@ shadowing, and uninformative package names.
 - **look for:** `:=` inside `if`/`for`/`switch`/closures re-declaring a variable that code after
   the block reads expecting the new value (`ctx`, results); an inner `x, err := ...` leaving the
   outer `err` checked later unchanged.
-- **skip:** same-scope reuse; shadowing whose outer value is not read again; same-type shadowing
-  of names other than `err` — govet reports it.
+- **skip:** same-scope reuse; shadowing whose outer value is not read again or is meant to
+  stay as it was (a fresh `ctx` for a goroutine, `if v := cache[k]; v != nil`): the guide
+  calls intentional shadowing a useful practice.
 - **example:** `if short { ctx, cancel := context.WithTimeout(ctx, d); defer cancel() }` -> `var cancel func(); ctx, cancel = context.WithTimeout(ctx, d)`
 
-### google-practices:shadowing/std-package-vars — Variables named after packages
-- **meta:** severity=consider · scope=body · check=lint+llm · lint=revive:import-shadowing
+### google-practices:shadowing/std-package-vars — Variables and packages named after packages
+- **meta:** severity=consider · scope=body · check=lint+llm · lint=gocritic:importShadow~shadow of imported package,revive:package-naming~conflicts with
 - **rule:** Outside very small scopes, don't give variables the names of standard packages
   (`url`, `path`, `time`): below the declaration, that package's functions and values are
-  unreachable.
+  unreachable. Conversely, don't give a package a name that clients are likely to have to
+  rename on import or that shadows good variable names at their side.
 - **look for:** package-named locals or parameters in long functions (`url := "https://..."` at
   the top of a 50-line function), including packages the file does not import yet.
-- **skip:** identifiers shadowing an import of the same file — revive reports them (it does not
-  exempt the very small scopes the guide allows).
+- **skip:** identifiers shadowing a standard package the same file imports — gocritic reports
+  them (it does not exempt the very small scopes the guide allows); a package named like a
+  common standard package (`http`, `log`) — revive reports it.
 - **example:** `url := cfg.Endpoint` -> `endpoint := cfg.Endpoint`
 
 ### google-practices:shadowing/package-naming — Package names that invite shadowing

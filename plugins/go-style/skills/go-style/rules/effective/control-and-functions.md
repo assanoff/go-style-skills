@@ -4,15 +4,15 @@ How Effective Go writes `if`, `:=` redeclaration, `for`, `switch` and type switc
 and how functions use multiple and named results and `defer`.
 
 ### effective:if — If
-- **meta:** severity=should · scope=body · check=lint+llm · lint=revive:indent-error-flow,revive:superfluous-else,revive:early-return · overlaps=google-decisions:indent-error-flow
+- **meta:** severity=should · scope=body · check=lint+llm · lint=revive:indent-error-flow,revive:superfluous-else · overlaps=google-decisions:indent-error-flow
 - **rule:** When an `if` body doesn't flow into the next statement — it ends in `break`,
   `continue`, `goto` or `return` — omit the unnecessary `else`. Guard against error
   conditions as they arise and return early, so the successful flow of control runs
   down the page.
 - **look for:** the success path nested in `if err == nil { ... }` with the failure
-  handled afterwards; error checks postponed past unrelated work.
-- **skip:** `else` after a terminating `if` and invertible `if/else` blocks — revive
-  reports them.
+  handled afterwards or in the `else`; error checks postponed past unrelated work.
+- **skip:** `else` after a terminating `if` — revive reports it; an `if/else` whose
+  `else` returns something other than an error (the guide speaks of error cases).
 - **example:** `if err != nil { return err } else { codeUsing(f) }` -> `if err != nil { return err }` then `codeUsing(f)`
 
 ### effective:redeclaration — Redeclaration and reassignment
@@ -43,18 +43,18 @@ and how functions use multiple and named results and `defer`.
   accepts integers (`for i := range n`); since Go 1.23 it accepts iterator functions.
 
 ### effective:switch/if-else-chains — Switch: expressionless switch for if-else chains
-- **meta:** severity=consider · scope=body · check=lint+llm · lint=gocritic:ifElseChain,gocritic:switchTrue
+- **meta:** severity=consider · scope=body · check=lint+llm · lint=gocritic:ifElseChain
 - **rule:** A `switch` with no expression switches on `true` and evaluates its cases top
   to bottom until one matches, so writing an if-else-if-else chain as a `switch` is
   possible and idiomatic.
 - **look for:** if-else-if chains that gocritic skips because one of their `if`s has
   an init statement.
-- **skip:** chains of three or more branches without init statements, and
-  `switch true {` — gocritic reports them.
+- **skip:** chains of three or more branches without init statements — gocritic
+  reports them.
 - **example:** `if x < 0 {...} else if x == 0 {...} else {...}` -> `switch { case x < 0: ...; case x == 0: ...; default: ... }`
 
 ### effective:switch/break — Switch: no fall-through, break and labels
-- **meta:** severity=should · scope=body · check=lint+llm · lint=revive:useless-break,revive:useless-fallthrough,staticcheck:SA4011 · custom=empty-case-clause · overlaps=google-decisions:switch-break
+- **meta:** severity=should · scope=body · check=lint+llm · lint=revive:useless-break~WARN,revive:useless-fallthrough,staticcheck:SA4011 · custom=empty-case-clause · overlaps=google-decisions:switch-break
 - **rule:** Cases don't fall through, so no trailing `break` is needed, and values that
   share a body go in one comma-separated list (`case ' ', '?', '&':`). A `break`
   inside a `switch` ends only the switch; to leave an enclosing loop, label the loop
@@ -62,8 +62,10 @@ and how functions use multiple and named results and `defer`.
 - **look for:** an empty `case` written as if it fell into the next one (in Go it does
   nothing); a `break` inside a `switch` in a loop where the intent is to exit the
   loop.
-- **skip:** a trailing `break`, a lone `fallthrough` and `break` statements with no
-  effect — the listed linters report them.
+- **skip:** a lone `fallthrough`, a `break` with no effect, and a trailing `break` in
+  a `switch` inside a loop (it leaves the switch, not the loop) — the listed linters
+  report them; any other trailing `break`: Effective Go calls it unnecessary, not
+  wrong (google-decisions:switch-break is the rule against it).
 - **example:** `case 'a':` (empty) followed by `case 'b': f()` -> `case 'a', 'b': f()`
 
 ### effective:type_switch — Type switch

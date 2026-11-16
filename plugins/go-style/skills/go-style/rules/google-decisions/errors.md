@@ -44,12 +44,12 @@ deliberately, avoiding in-band error values, and keeping the normal path out of 
   caller, or, in exceptional situations, call `log.Fatal` or (if absolutely necessary) `panic`.
   Discarding an error with `_` is rarely appropriate; when it is safe (e.g.
   `(*bytes.Buffer).Write`, documented never to fail), a comment should explain why.
-- **look for:** errors assigned to `_` without a justifying comment (`_ = f.Close()`,
-  `n, _ := w.Write(b)`) — errcheck ignores blank assignments; errors that are checked but then
-  dropped (empty `if err != nil {}`, or the code carries on as if the call succeeded);
-  unchecked `Close`, `Flush` or `Sync` of a file or writer the code wrote to, and unchecked
-  `fmt.Fprint*` to a connection or file — the linter config leaves this group to you.
-- **skip:** other unchecked calls — errcheck reports them; `return nil` inside
+- **look for:** errors that are checked but then dropped (empty `if err != nil {}`, or the
+  code carries on as if the call succeeded); `Close`, `Flush` or `Sync` of a file or writer
+  the code wrote to, and `fmt.Fprint*` to a connection or file, unchecked or sent to `_`
+  without a comment that says why — the linter config leaves this group to you.
+- **skip:** other error results that are not checked or go to `_` — errcheck reports them
+  (a discard with a comment on the same line is let through); `return nil` inside
   `if err != nil` (nilerr); commented discards of errors documented never to occur; a
   deferred `Close` of something only read; printing to stdout or stderr.
 - **example:** `n, _ := b.Write(p)` -> `n, _ := b.Write(p) // never returns a non-nil error`
@@ -64,8 +64,9 @@ deliberately, avoiding in-band error values, and keeping the normal path out of 
 - **look for:** docs or code saying "returns -1 / "" / nil if not found"; index-style `int`
   results using `-1` for absent; an empty string or zero struct with a nil error meaning
   "missing".
-- **skip:** `return nil, nil` pairs (nilnil reports them); comparators returning -1/0/1, which
-  are values, not error signals.
+- **skip:** `return nil, nil` pairs (nilnil reports them outside tests, and not for maps,
+  whose nil is a valid empty value); comparators returning -1/0/1, which are values, not
+  error signals.
 - **example:** `func Lookup(key string) int // -1 if absent` -> `func Lookup(key string) (value int, ok bool)`
 
 ### google-decisions:indent-error-flow — Indent error flow

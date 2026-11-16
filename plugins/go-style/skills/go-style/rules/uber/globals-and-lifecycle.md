@@ -19,15 +19,16 @@ the program, serialized structs and goroutine lifetimes.
   than at the third-party module.
 
 ### uber:avoid-mutable-globals — Avoid Mutable Globals
-- **meta:** severity=should · scope=repo · check=lint+llm · lint=gochecknoglobals · custom=global-mutation · overlaps=google-practices:globals
+- **meta:** severity=should · scope=repo · check=lint+llm · lint=reassign · custom=global-mutation · overlaps=google-practices:globals
 - **rule:** Avoid mutating global variables, function pointers included; opt for dependency
   injection instead (a struct field set by the constructor, a parameter), which also lets
   tests substitute dependencies without swapping globals.
-- **look for:** package variables reassigned in functions or tests (save, override, deferred
-  restore); function variables used as test seams (`var _timeNow = time.Now`); setters of
-  package state; writes to other packages' globals.
-- **skip:** package variables never reassigned after initialization — gochecknoglobals reports
-  every package variable, so check for mutation.
+- **look for:** package variables reassigned in functions or tests of their own package
+  (save, override, deferred restore); function variables used as test seams
+  (`var _timeNow = time.Now`); setters of package state.
+- **skip:** package variables never reassigned after initialization (tables, sentinel
+  errors, compiled regexps); a write to another package's variable — reassign reports it
+  (not `flag.Usage`, which is meant to be set).
 - **example:** `var _timeNow = time.Now` -> `type signer struct{ now func() time.Time }` filled by `newSigner()`
 
 ### uber:avoid-embedding-types-in-public-structs — Avoid Embedding Types in Public Structs
@@ -53,7 +54,7 @@ the program, serialized structs and goroutine lifetimes.
 - **example:** `func handleErrorMessage(error string)` -> `func handleErrorMessage(msg string)`
 
 ### uber:avoid-init/declarations — Avoid `init()`: prefer declarations
-- **meta:** severity=should · scope=repo · check=lint+llm · lint=gochecknoinits · overlaps=effective:init
+- **meta:** severity=should · scope=repo · check=llm · overlaps=effective:init
 - **rule:** Avoid `init()` where possible: compute package values in variable initializers (or a
   helper they call, which is also testable) and move other setup into `main()` or elsewhere in
   the program's lifecycle. `init()` may be preferable or necessary for complex expressions that
@@ -61,7 +62,7 @@ the program, serialized structs and goroutine lifetimes.
   registries) and deterministic precomputation.
 - **look for:** `init()` that only assigns package variables (`_defaultFoo = Foo{...}`); setup a
   constructor or `main()` could own.
-- **skip:** the preferable uses above (gochecknoinits reports every `init()`).
+- **skip:** the preferable uses above.
 - **example:** `func init() { _defaultFoo = Foo{...} }` -> `var _defaultFoo = defaultFoo()`
 
 ### uber:avoid-init/side-effects — Avoid `init()`: no environment, I/O or ordering
@@ -77,7 +78,7 @@ the program, serialized structs and goroutine lifetimes.
 - **example:** `func init() { raw, _ := os.ReadFile(...); yaml.Unmarshal(raw, &_config) }` -> `func loadConfig() Config` called from `main`
 
 ### uber:exit-in-main — Exit in Main
-- **meta:** severity=should · scope=body · check=lint+llm · lint=revive:deep-exit · conflicts=google-decisions:dont-panic, google-practices:checks-and-panics
+- **meta:** severity=should · scope=body · check=lint+llm · lint=revive:deep-exit~^(?!.*log\.Panic) · conflicts=google-decisions:dont-panic, google-practices:checks-and-panics
 - **rule:** Call `os.Exit` or `log.Fatal*` only in `main()`; all other functions return errors
   to signal failure. Exiting elsewhere obscures control flow, makes code hard to test (it ends
   the test binary) and skips deferred cleanup. Panicking is not a way to exit either.
@@ -86,7 +87,8 @@ the program, serialized structs and goroutine lifetimes.
   callers.
 - **skip:** `os.Exit(m.Run())` in `TestMain`; calls revive already reports.
 - **example:** `func readFile(path string) string { ...; log.Fatal(err) }` -> `func readFile(path string) (string, error)`
-- **note:** revive's deep-exit also reports `log.Panic*` and `flag.Parse` outside `main`/`init`.
+- **note:** revive's deep-exit also reports `flag.Parse` outside `main`/`init`, which exits
+  on a bad flag; its `log.Panic*` reports are left out here (uber:dont-panic is their rule).
 
 ### uber:exit-once — Exit Once
 - **meta:** severity=should · scope=body · check=lint+llm · lint=gocritic:exitAfterDefer · custom=multiple-exits-in-main

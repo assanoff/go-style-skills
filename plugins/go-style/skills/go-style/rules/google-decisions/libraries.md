@@ -56,7 +56,7 @@ Decisions on flags, logging, `context.Context` and `crypto/rand`; advice written
   `func F(ctx context.Context, name string)`
 
 ### google-decisions:contexts/background — Contexts: take the caller's context
-- **meta:** severity=should · scope=body · check=lint+llm · lint=contextcheck,noctx · custom=background-in-library
+- **meta:** severity=should · scope=body · check=lint+llm · lint=contextcheck · custom=background-in-library
 - **rule:** Pass contexts explicitly along the whole call chain, from incoming requests to
   outgoing calls. Create a base context with `context.Background()` only in entrypoints
   (`main` in binaries, `init` in libraries); code in the middle of a call chain takes its
@@ -64,9 +64,11 @@ Decisions on flags, logging, `context.Context` and `crypto/rand`; advice written
   implements a server framework. Work that must outlive the parent's cancellation uses
   context detachment, not a fresh context. One context may be shared by several calls.
 - **look for:** `context.Background()`/`TODO()` in library functions without a `ctx`
-  parameter that do I/O; background work on a fresh context where detachment was meant.
-- **skip:** a received ctx replaced by a new one (contextcheck) and context-less std calls
-  such as `http.Get` (noctx) — reported by linters; server frameworks' per-request contexts.
+  parameter that do I/O; a function that has a `ctx` and calls the context-less form of
+  an API all the same (`http.NewRequest`, `db.Query`, `exec.Command`); background work on
+  a fresh context where detachment was meant.
+- **skip:** a received ctx replaced by a new one — contextcheck reports it; server
+  frameworks' per-request contexts; context-less calls in tests and in entrypoints.
 - **note:** the guide points to golang/go#40221 for detachment outside Google; since Go 1.21
   use `context.WithoutCancel(ctx)`.
 
@@ -76,7 +78,8 @@ Decisions on flags, logging, `context.Context` and `crypto/rand`; advice written
   `ctx` parameter. The one exception is a method whose signature must match an interface in
   the standard library or a third-party library outside your control: very rare, and at
   Google subject to review by the Go style list.
-- **skip:** reported by containedctx; the interface-signature exception above.
+- **skip:** reported by containedctx outside tests; the interface-signature exception
+  above.
 - **example:** `type worker struct { ctx context.Context }` ->
   `func (w *worker) Run(ctx context.Context) error`
 

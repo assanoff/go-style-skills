@@ -695,6 +695,20 @@ def map_issue(rules: list[Rule], linter: str, check: str | None, text: str) -> l
     return hits
 
 
+def without_goimports_twins(issues: list[dict]) -> list[dict]:
+    """goimports formats a file as gofmt does and then orders its imports, so a
+    line gofmt reports goimports reports too, in the same words. Such an issue
+    is about formatting; what goimports reports alone is about imports, and
+    only that is kept under its name."""
+    def at(it: dict) -> tuple:
+        pos = it.get("Pos") or {}
+        return pos.get("Filename"), pos.get("Line")
+
+    gofmt = {at(it) for it in issues if it.get("FromLinter") == "gofmt"}
+    return [it for it in issues
+            if it.get("FromLinter") != "goimports" or at(it) not in gofmt]
+
+
 def golangci_too_old(version_output: str) -> bool:
     """Reports whether golangci-lint --version names a release older than the
     config needs. A build without a release number (devel) is not too old."""
@@ -1017,6 +1031,7 @@ def cmd_prepare(args) -> None:
             sorted({"./" + f.pkg if f.pkg != "." else "." for f in files})
         lint_status, issues = run_golangci(root, lint_patterns, not args.no_tests,
                                            run_dir / "golangci.json")
+        issues = without_goimports_twins(issues)
     scope_paths = {f.path for f in files}
     mapped, unmapped, build_errors = [], collections.Counter(), []
     # Issues no selected guide covers but another guide does: reported as a
@@ -2043,6 +2058,22 @@ def cmd_validate(args) -> None:
                                "overlaps", "conflicts"}
         if extra:
             problems.append(f"{where}: unknown meta keys {sorted(extra)}")
+    # The other way round: a check the config runs and no rule names costs time
+    # and its issues are dropped. govet is left out: its default analyzers run
+    # whether a rule names them or not.
+    named: dict[str, set] = collections.defaultdict(set)
+    for r in rules:
+        for k in r.lint:
+            named[k.linter].add(k.check)
+    for linter in sorted(linters - set(named)):
+        problems.append(f"config/golangci.yml: linter {linter} is enabled, "
+                        "but no rule has a lint key for it")
+    for linter, enabled in sorted(checks.items()):
+        if linter == "govet" or None in named.get(linter, {None}):
+            continue
+        for check in sorted(enabled - named[linter]):
+            problems.append(f"config/golangci.yml: {linter} check {check} is enabled, "
+                            "but no rule has a lint key for it")
     by_guide = collections.Counter(r.guide for r in rules)
     for g in GUIDES:
         checks = collections.Counter(r.check for r in rules if r.guide == g)

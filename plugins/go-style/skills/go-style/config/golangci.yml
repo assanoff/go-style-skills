@@ -32,8 +32,6 @@ linters:
     - forbidigo
     - forcetypeassert
     - funcorder
-    - gochecknoglobals
-    - gochecknoinits
     - gocognit
     - gocritic
     - godoclint
@@ -46,18 +44,16 @@ linters:
     - modernize
     - musttag
     - nakedret
-    - nestif
     - nilerr
     - nilnil
-    - noctx
     - perfsprint
     - prealloc
     - predeclared
+    - reassign
     - recvcheck
     - revive
     - staticcheck
     - thelper
-    - tparallel
     - unused
     - usetesting
 
@@ -113,6 +109,23 @@ linters:
       # uber#zero-value-mutexes-are-valid: never embed sync.Mutex / RWMutex.
       forbid-mutex: true
 
+    errcheck:
+      # google-decisions#handle-errors, effective#blank_assign: an error dropped
+      # into `_` is no better than one that is not checked.
+      check-blank: true
+      # Writers that are documented never to fail (the guides' own exception).
+      exclude-functions:
+        - io.WriteString(*bytes.Buffer)
+        - io.WriteString(*strings.Builder)
+        - io.WriteString(hash.Hash)
+        - io.WriteString(hash.Hash32)
+        - io.WriteString(hash.Hash64)
+
+    errorlint:
+      # Only the checks of how an error is matched. `%w` or `%v` in fmt.Errorf
+      # is a choice both Google and Uber leave to the author.
+      errorf: false
+
     forbidigo:
       analyze-types: true
       forbid:
@@ -127,25 +140,26 @@ linters:
       struct-method: true
 
     gocognit:
-      # A hotspot hint for google-guide#simplicity, not a hard limit.
-      min-complexity: 30
+      # A hotspot hint for google-guide#simplicity, not a hard limit. At the
+      # linter's default of 30 a flat run of `if x != "" { print }` blocks is
+      # reported, which the guide calls easy to read.
+      min-complexity: 50
 
     gocritic:
       disable-all: true
       enabled-checks:
-        - appendAssign
         - boolExprSimplify
         - captLocal
         - docStub
         - exitAfterDefer
         - ifElseChain
+        - importShadow
         - nestingReduce
         - preferFprint
         - ptrToRefParam
         - sloppyReassign
         - sprintfQuotedString
         - stringConcatSimplify
-        - switchTrue
         - typeDefFirst
         - typeSwitchVar
         - yodaStyleExpr
@@ -164,18 +178,20 @@ linters:
     godot:
       # google-decisions#comment-sentences: doc comments are full sentences.
       scope: declarations
-
-    govet:
-      # Default analyzers plus shadow (google-practices#shadowing; the catalog
-      # maps only non-err shadowing, the noisy intentional case is left out).
-      enable:
-        - shadow
+      # A comment whose last line is one of these is left alone: a sentence
+      # ending inside a quotation, a TODO, a list item.
+      exclude:
+        - '[.!?]"$'
+        - '^\s*TODO'
+        - '^\s*(-|\*|\d+[.)])\s'
 
     iface:
       enable:
+        # Not `unused`: an interface nobody uses inside its package is, when
+        # exported, the protocol the package offers, which the guides endorse,
+        # and when unexported, dead code that the unused linter reports.
         - identical
         - opaque
-        - unused
         - unusedmethod
 
     lll:
@@ -219,6 +235,17 @@ linters:
       # functions of a handful of lines.
       max-func-lines: 8
 
+    nilnil:
+      # google-decisions#in-band-errors. Not maps: a nil map is a valid empty
+      # value, as a nil slice is.
+      checked-types: [ptr, func, iface, chan, uintptr, unsafeptr]
+
+    reassign:
+      # uber#avoid-mutable-globals: any variable of another package, not only
+      # its errors.
+      patterns:
+        - ".*"
+
     revive:
       rules:
         - name: argument-limit
@@ -228,10 +255,12 @@ linters:
         - name: context-as-argument
         - name: deep-exit
         - name: defer
-          # effective#recover: only the recover checks; call-chain would flag
-          # the deferred-trace idiom Effective Go recommends.
+          # effective#recover: only `defer recover()`, which recovers nothing.
+          # The recover option also reports recover in a named function that is
+          # itself deferred, which works; call-chain would flag the
+          # deferred-trace idiom Effective Go recommends.
           arguments:
-            - [recover, immediate-recover]
+            - [immediate-recover]
         - name: dot-imports
         - name: early-return
         - name: enforce-map-style
@@ -247,9 +276,7 @@ linters:
               skip-comments: true
               skip-blank-lines: true
         - name: import-alias-naming
-        - name: import-shadowing
         - name: indent-error-flow
-        - name: modifies-value-receiver
         - name: package-comments
         - name: package-directory-mismatch
         - name: package-naming
@@ -273,9 +300,19 @@ linters:
           arguments:
             - max-length: 3
         - name: redundant-import-alias
+        - name: string-format
+          # google-practices#error-extra-info, uber#error-wrapping: a wrap adds
+          # what the caller does not know yet, without stop words, or the error
+          # is returned as it is.
+          arguments:
+            - - fmt.Errorf[0]
+              - "!/^(?i:failed to|unable to|could not|couldn't) .*: %[wv]$/"
+              - 'stop words in a wrapped error: say what was being done ("open config: %w")'
+            - - fmt.Errorf[0]
+              - '!/^((failed|error): )?%[wv]$/'
+              - the wrap adds nothing; add context or return the error as it is
         - name: superfluous-else
         - name: time-equal
-        - name: time-naming
         - name: unnecessary-format
         - name: unnecessary-if
         - name: use-any
@@ -283,6 +320,11 @@ linters:
         - name: useless-fallthrough
         - name: var-declaration
         - name: var-naming
+          # google-decisions#initialisms lists DB, which revive's own list of
+          # initialisms lacks: an allow list (empty), then a block list.
+          arguments:
+            - []
+            - [DB]
 
     staticcheck:
       checks:
@@ -293,10 +335,13 @@ linters:
         - S1023
         - S1028
         - S1033
+        - S1031
         - S1034
         - SA2002
         - SA4005
+        - SA4010
         - SA4011
+        - SA5000
         - SA5001
         - ST1005
         # Receiver names consistent across the files of a package (revive only
@@ -334,16 +379,61 @@ linters:
       # what the test wants; the guides ask for comma-ok where code must go on.
       - path: _test\.go$
         linters: [forcetypeassert]
-      # best-practices#globals is about the state of a program; its own examples
-      # keep test fixtures in package variables of the test file.
+      # A function a test passes to t.Run or calls as its body is not a
+      # helper, and t.Helper() there would hide the line that failed.
+      - linters: [thelper]
+        source: '^func test[A-Z]'
+      # Fakes and table tests implement signatures and hold fixtures the guides'
+      # rules for production code do not mean: a nil, nil stub, a case struct
+      # with a context.
       - path: _test\.go$
-        linters: [gochecknoglobals]
+        linters: [nilnil, containedctx]
+      # uber#performance applies to the hot path, which a test is not.
+      - path: _test\.go$
+        linters: [prealloc]
+      - path: _test\.go$
+        linters: [perfsprint]
+        text: strconv|hex\.Encode
+      # uber#avoid-overly-long-lines is about code: a URL, a struct tag or a
+      # long string literal cannot be wrapped.
+      - linters: [lll]
+        source: 'https?://|`\w+:"|"[^"]{60,}"'
+      # The deferred-wrap idiom, func Wrap(errp *error, ...), writes through
+      # its pointer.
+      - linters: [gocritic]
+        text: ptrToRefParam
+        source: '\*error\b'
+      # decisions#doc-comments lets an article precede the name in any doc
+      # comment; revive accepts it for types only.
+      - linters: [revive]
+        text: should be of the form
+        source: '^\s*//\s*(A|An|The)\s'
+      # best-practices#shadowing names standard packages; a local variable
+      # may well share its name with a package of the module.
+      - linters: [gocritic]
+        text: 'importShadow: shadow of imported from'
+      # A method nobody calls inside the package: on an exported interface that
+      # is the protocol the package offers. An interface over one unexported
+      # type: encapsulation, which the guides accept.
+      - linters: [iface]
+        text: "unusedmethod: .* on interface '[A-Z]"
+      - linters: [iface]
+        text: "opaque: .* implementation of '\\*?[a-z]"
+      # Setting flag.Usage is how the flag package is meant to be used.
+      - linters: [reassign]
+        text: Usage in other package flag
+      # decisions#handle-errors accepts a discarded error that a comment
+      # explains; the comment is taken to be on the same line.
+      - linters: [errcheck]
+        source: '\b_\s*(,\s*\w+\s*)*:?=[^=].*[^:"]//'
       # decisions#nil-slices prefers nil for a slice variable that is declared
-      # empty. revive also reports an empty slice written as a struct field, a
-      # call argument or an element, where the guides have no preference.
+      # empty, uber#nil-is-a-valid-slice for one that is returned. revive also
+      # reports an empty slice written as a struct field, a call argument, an
+      # element or an assignment to a field, where the guides have no
+      # preference.
       - linters: [revive]
         text: enforce-slice-style
-        source: '(:\s+|[,{(]\s*)\[\]\S*\{\}|(:\s+|[,{]\s*)make\(\[\]'
+        source: '(:\s+|[,{(]\s*|^\s*)&?\[\]\S*\{\}|(:\s+|[,{]\s*)make\(\[\]|\.\w+\s*=\s*(\[\]|make\()'
 
 formatters:
   enable:

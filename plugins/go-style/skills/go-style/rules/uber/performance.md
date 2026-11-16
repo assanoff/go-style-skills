@@ -43,7 +43,8 @@ Uber's performance guidelines; the guide applies them only to hot paths.
   don't reallocate until the length reaches it.
 - **look for:** `make([]T, 0)` or `var s []T` appended to in counted `for i := 0; i < n; i++`
   loops or in loops with `break`/`continue`/`return` — prealloc skips those by default.
-- **skip:** code off the hot path; unknown final sizes; range loops prealloc already reports.
+- **skip:** code off the hot path, tests included; unknown final sizes; range loops
+  prealloc already reports.
 - **example:** `data := make([]int, 0)` -> `data := make([]int, 0, size)`
 - **note:** Google's best practices treat preallocation as optional outside measured hot code;
   Google's guidance wins in multi-guide runs.

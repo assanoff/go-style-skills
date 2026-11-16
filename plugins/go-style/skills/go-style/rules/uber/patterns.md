@@ -50,7 +50,7 @@ tests, functional options, and the recommended lint setup.
   still asks for the copy although its example no longer shows it.
 
 ### uber:functional-options — Functional Options
-- **meta:** severity=consider · scope=decl · check=lint+llm · lint=revive:argument-limit · overlaps=google-practices:variadic-options
+- **meta:** severity=consider · scope=decl · check=llm · overlaps=google-practices:variadic-options
 - **rule:** For optional arguments of constructors and other public APIs you expect to
   grow, especially with three or more parameters, accept variadic `...Option` values.
   Uber suggests an `Option` interface with an unexported `apply(*options)` method over
@@ -60,11 +60,10 @@ tests, functional options, and the recommended lint setup.
   defaults (`db.Open(addr, db.DefaultCache, zap.NewNop())`); new optional parameters
   appended to public signatures.
 - **skip:** required parameters (keep them positional); unexported functions.
-- **note:** argument-limit fires only above the configured maximum (6), well beyond
-  Uber's three-parameter hint. Google's variadic-options example uses closures.
+- **note:** Google's variadic-options example uses closures.
 
 ### uber:linting — Linting
-- **meta:** severity=should · scope=repo · check=lint+llm · lint=errcheck
+- **meta:** severity=should · scope=repo · check=lint+llm · lint=errcheck,govet:printf~non-constant format
 - **rule:** Lint consistently across the codebase, which matters more than any blessed
   linter set. At minimum run errcheck (errors are handled), goimports, revive (successor
   of the deprecated golint), govet and staticcheck, preferably through golangci-lint,
@@ -73,4 +72,5 @@ tests, functional options, and the recommended lint setup.
   base set; packages or directories excluded from linting.
 - **skip:** extra linters beyond the base set (encouraged).
 - **note:** errcheck findings map here because this is where Uber asks for errors to be
-  handled; findings of the other base linters map to the specific rules.
+  handled, and so does go vet's report of a non-constant format string, which no other
+  section covers; findings of the other base linters map to the specific rules.

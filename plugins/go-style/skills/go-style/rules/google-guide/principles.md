@@ -53,8 +53,9 @@ overrides the others.
 ### google-guide:simplicity/hotspots — Simplicity: complexity hotspots
 - **meta:** severity=consider · scope=body · check=lint · lint=gocognit
 - **rule:** The guide names no complexity limit. A function the linter scores as very
-  complex is a place to look for what the simplicity and clarity principles describe —
-  steps run together, deep nesting, state carried far — and not a violation in itself.
+  complex (cognitive complexity of 50 and more) is a place to look for what the
+  simplicity and clarity principles describe — steps run together, deep nesting, state
+  carried far — and not a violation in itself.
 - **skip:** reviewers skip it — the score is a hint; a concrete obstacle goes under
   google-guide:simplicity or google-guide:clarity-purpose.
 

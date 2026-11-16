@@ -5,6 +5,62 @@ Notable changes of the `go-style` plugin. The version is the one in
 [Semantic Versioning](https://semver.org/); the format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.3.2] - 2026-11-16
+
+Every linter check was compared with the text of the guide section it reports
+under and with what it finds in four real modules, about 150 000 lines. A
+linter finding goes into the report without a reviewer's judgement, so a check
+stays only where nearly all it reports is what the guide objects to. On those
+modules the linters now report 4010 findings where they reported 5688.
+
+### Changed
+
+- No longer reported, because the guides allow most of what the check finds:
+  every package variable (`gochecknoglobals`: the guides mean mutable state),
+  context-less standard calls (`noctx`: nine in ten were in tests), shadowed
+  variables (govet `shadow`), nested `if` blocks that no early return removes
+  (`nestif`), every `init` (`gochecknoinits`), `%v` on an error in `fmt.Errorf`
+  (Uber offers both verbs, Google prefers `%v`), an interface or interface
+  method not used inside its own package when it is exported, an `append`
+  result kept under another name, `switch true`, a write to a value receiver
+  that the method reads again, and a `time.Duration` named with a unit. The
+  reviewers keep these rules.
+- A variable named like a package is reported only for standard packages
+  (gocritic `importShadow` in place of revive `import-shadowing`), as Google's
+  best practices say; a package named like a standard one is reported there
+  too.
+- An unchecked type assertion is reported under Uber's rule only, and left out
+  of a run that includes Effective Go, which writes `str := value.(string)`
+  where the type is known. `==`, a `switch` and a type assertion on an error
+  are a `consider` hint of the Uber guide, left out of a run that includes
+  Google's best practices, which call `==` adequate.
+- A doc comment that does not begin with the name is a `should`, a missing one
+  stays a `must`; an article before the name is accepted on any declaration.
+- Complexity hints start at a cognitive complexity of 50, not 30.
+- Not reported in tests: `nil, nil` returns, a context in a struct,
+  `prealloc`, `strconv` over `fmt`. Not reported at all: a `testX` function
+  without `t.Helper()`, a long line that holds a URL, a struct tag or a long
+  string, a `*error` parameter, a comment ending in a quotation, a TODO or a
+  list item without a period, an empty slice assigned to a field, a package of
+  integration tests with underscores in its name.
+- `recover()` in a function that is itself deferred, which works, is no longer
+  reported; `defer recover()` is.
+- A formatting problem is reported once, by gofmt, and no longer a second time
+  as an import problem.
+
+### Added
+
+- An error dropped into `_` is reported like one that is not checked
+  (errcheck `check-blank`), unless a comment on the line explains it.
+- Stop words in a wrapped error (`fmt.Errorf("failed to …: %w", err)`,
+  "unable to", "could not") and wraps that add nothing (`"%w"`,
+  `"failed: %w"`): both Google's best practices and Uber ask to leave them out.
+- A write to a nil map (staticcheck SA5000), an `append` whose result is never
+  read (SA4010), a nil check around a `range` (S1031), a write to another
+  package's variable (`reassign`), `Db` for `DB`.
+- `gostyle.py validate` fails when the linter config runs a check that no rule
+  names: such a check costs time and its findings are dropped.
+
 ## [0.3.1] - 2026-11-16
 
 ### Security

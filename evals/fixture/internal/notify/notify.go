@@ -4,6 +4,7 @@ package notify
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -94,4 +95,16 @@ type Settings struct {
 // Settings for the default batch.
 func DefaultSettings() Settings {
 	return Settings{Name: "default", Retries: 0, Verbose: false}
+}
+
+// Ping reports whether the webhook answers.
+func (n *Notifier) Ping() bool {
+	resp, _ := n.client.Head(n.URL)
+	return resp != nil && resp.StatusCode == http.StatusOK
+}
+
+// RetriesFrom reads the retry count from a header value.
+func RetriesFrom(header string) int {
+	count, _ := strconv.Atoi(header) // a malformed header means no retries
+	return count
 }

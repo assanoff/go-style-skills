@@ -97,13 +97,13 @@ analyzers), plus the standalone linters. The checks that back guide rules:
 | Area | Checks |
 |---|---|
 | formatting, imports | `gofmt` (simplify), `goimports` |
-| naming | revive `var-naming`, `package-naming`, `receiver-naming` (max length 3), `exported` (stutter), `time-naming`; gocritic `captLocal`; `errname`; `predeclared`; `goprintffuncname` |
+| naming | revive `var-naming`, `package-naming`, `receiver-naming` (max length 3), `exported` (stutter); gocritic `captLocal`, `importShadow`; `errname`; `predeclared`; `goprintffuncname` |
 | doc comments | revive `exported`, `package-comments`; `godot`; godoclint `single-pkg-doc`; gocritic `docStub` |
 | imports | revive `dot-imports`, `blank-imports`, `redundant-import-alias`, `import-alias-naming` |
-| errors | staticcheck ST1005; revive `error-return`, `indent-error-flow`, `superfluous-else`, `early-return`; `errorlint`; `errcheck`; `nilerr`; `nilnil` |
-| language | govet `composites`, `copylocks`, `printf`, `stdmethods`; revive `use-any`, `modifies-value-receiver`, `confusing-results`, `useless-break`, `range`, `var-declaration`, `enforce-map-style`, `enforce-slice-style`, `deep-exit`, `context-as-argument`; gocritic `sprintfQuotedString`, `switchTrue`, `ifElseChain`, `typeSwitchVar`, `ptrToRefParam`, `exitAfterDefer`, `typeDefFirst`; staticcheck S1009, S1023; `containedctx`; `forcetypeassert`; `recvcheck`; `nakedret`; `musttag`; `iface`; `interfacebloat`; `embeddedstructfieldcheck`; `funcorder`; `gochecknoglobals`; `gochecknoinits`; `perfsprint`; `prealloc`; `lll`; modernize `atomictypes` |
-| tests | govet `testinggoroutine`; staticcheck SA2002; `thelper`; `tparallel`; `depguard` (assertion libraries in tests, cmp outside tests); `forbidigo` (`reflect.DeepEqual` in tests) |
-| complexity hints | `gocognit`, `nestif` — hotspots for the principle review |
+| errors | staticcheck ST1005; revive `error-return`, `indent-error-flow`, `superfluous-else`, `early-return`, `string-format` (stop words in a wrap); `errorlint` (how an error is matched, not `%w`); `errcheck` with `check-blank`; `nilerr`; `nilnil` |
+| language | govet `composites`, `copylocks`, `printf`, `stdmethods`; revive `use-any`, `confusing-results`, `useless-break`, `range`, `var-declaration`, `enforce-map-style`, `enforce-slice-style`, `deep-exit`, `context-as-argument`; gocritic `sprintfQuotedString`, `ifElseChain`, `typeSwitchVar`, `ptrToRefParam`, `exitAfterDefer`, `typeDefFirst`; staticcheck S1009, S1023, S1031, SA4005, SA4010, SA5000; `containedctx`; `forcetypeassert`; `recvcheck`; `nakedret`; `musttag`; `iface`; `interfacebloat`; `embeddedstructfieldcheck`; `funcorder`; `reassign`; `perfsprint`; `prealloc`; `lll`; modernize `atomictypes` |
+| tests | govet `testinggoroutine`; staticcheck SA2002; `thelper`; `depguard` (assertion libraries in tests, cmp outside tests); `forbidigo` (`reflect.DeepEqual` in tests) |
+| complexity hints | `gocognit` (from 50) — hotspots for the principle review |
 
 Deliberately **not** enabled, because they contradict a guide or measure taste
 the guides do not share: `err113` (Uber explicitly allows inline
@@ -118,6 +118,24 @@ requires `t.Parallel`), `exhaustruct` (Uber says omit zero fields), `ireturn`
 `add-constant`, `function-length`, `cognitive-complexity` (numbers no guide
 gives). Google's "Non-decisions" make `map{}` vs `make`, `&T{}` vs `new(T)` and
 `errors.New` vs `fmt.Errorf` free choices, so those checks map only to Uber.
+
+A linter issue goes into the report as it is: the exceptions a rule lists for
+the reviewer do not filter it. So a check backs a rule only when nearly all it
+reports is what the guide's text objects to, and a check that is merely about
+the same subject does not. An audit of every key against the guide text and
+against the issues of four real modules (Go's pkgsite among them) took these
+out, each with the share of its issues that the text supported:
+`gochecknoglobals` (about one in ten: it reports every package variable, the
+guides only mutable state), `noctx` (nine in ten issues were context-less calls
+in tests), govet `shadow` (none of 13: all intentional), revive
+`import-shadowing` (one in eight shadowed a standard package; gocritic
+`importShadow` tells them apart), iface `unused` (exported protocol
+interfaces), `nestif` (nesting that no early return removes), `gochecknoinits`
+(Uber lists uses of `init` it accepts), errorlint's `%w` check (Uber offers
+`%v` too, Google prefers it), revive `modifies-value-receiver` (staticcheck
+SA4005 reports the write that is lost), gocritic `appendAssign` and
+`switchTrue`, revive `time-naming`, and `tparallel`, which no rule named.
+`gostyle.py validate` now fails when the config runs a check no rule names.
 
 ## 4. Skill design
 

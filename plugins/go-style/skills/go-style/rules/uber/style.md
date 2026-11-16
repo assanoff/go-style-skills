@@ -63,15 +63,16 @@ initialize structs, slices, maps and format strings.
 - **example:** `"fmt"`, `"os"`, `"go.uber.org/atomic"` in one group -> `"fmt"`, `"os"`, blank line, `"go.uber.org/atomic"`
 
 ### uber:package-names — Package Names
-- **meta:** severity=should · scope=repo · check=lint+llm · lint=revive:package-naming~(underscore|MixedCaps|root level),revive:package-naming~bad package name,revive:package-naming~conflicts with · overlaps=google-decisions:package-names,google-practices:util-packages,effective:package-names
+- **meta:** severity=should · scope=repo · check=lint+llm · lint=revive:package-naming~^(?!.*_test" that).*(underscore|MixedCaps),revive:package-naming~"(common|utils?)" because it is a bad,revive:package-naming~conflicts with · overlaps=google-decisions:package-names,google-practices:util-packages,effective:package-names
 - **rule:** Package names are all lower-case with no capitals or underscores, short and
   succinct (callers spell them at every call site), singular (`net/url`, not
   `net/urls`), need no import alias at most call sites, and avoid uninformative names
   such as `common`, `util`, `shared` or `lib`.
-- **look for:** plural names (`urls`, `handlers`, `users`); `lib`; long or compound names;
-  packages that callers routinely import under an alias.
-- **skip:** underscores, MixedCaps, `util`/`common`/`shared` and names that collide with a
-  std package — revive reports them; `_test` package suffixes.
+- **look for:** plural names (`urls`, `handlers`, `users`); `shared`, `lib`; long or
+  compound names; packages that callers routinely import under an alias.
+- **skip:** underscores, MixedCaps, `util`/`common` and names that collide with a std
+  package (callers have to rename one of the two) — revive reports them; `_test` package
+  suffixes.
 
 ### uber:function-names — Function Names
 - **meta:** severity=should · scope=decl · check=lint · lint=revive:var-naming~underscores in Go names; (func|method) \S+ should · overlaps=google-guide:mixed-caps,google-decisions:underscores,effective:mixed-caps
@@ -118,14 +119,15 @@ initialize structs, slices, maps and format strings.
 - **example:** `Cost()` method, then `type something`, then `newSomething()` -> type, `newSomething`, methods, `calcCost`
 
 ### uber:reduce-nesting — Reduce Nesting
-- **meta:** severity=should · scope=body · check=lint+llm · lint=revive:early-return,revive:indent-error-flow,revive:superfluous-else,gocritic:nestingReduce,nestif · overlaps=google-decisions:indent-error-flow,effective:if
+- **meta:** severity=should · scope=body · check=lint+llm · lint=revive:early-return,revive:indent-error-flow,revive:superfluous-else,gocritic:nestingReduce · overlaps=google-decisions:indent-error-flow,effective:if
 - **rule:** Handle error cases and special conditions first, returning early or
   continuing the loop, so less code is nested several levels deep.
 - **look for:** loop bodies shaped `if valid { …main path… } else { log… }` where the
   invalid case could `continue` first; the main path inside `if err == nil { … }`; main
   logic three or more levels deep that early exits would flatten.
-- **skip:** else after `return`/`continue`/`break`, `if c { … } else { return }`, loops
-  whose whole body is one `if`, and deeply nested `if` chains — the linters report them.
+- **skip:** else after `return`/`continue`/`break`, `if c { … } else { return }` and
+  loops whose whole body is one `if` — the linters report them; nesting that no early
+  exit would remove (two main paths in `if`/`else`).
 - **note:** when this conflicts with uber:reduce-scope-of-variables, reducing nesting wins.
 - **example:** `if err := v.Call(); err == nil { v.Send() } else { return err }` -> `if err := v.Call(); err != nil { return err }` then `v.Send()`
 
@@ -207,12 +209,13 @@ initialize structs, slices, maps and format strings.
 - **example:** `if x == "" { return []int{} }` -> `if x == "" { return nil }`
 
 ### uber:nil-is-a-valid-slice/empty-check — Check slice emptiness with len
-- **meta:** severity=should · scope=body · check=lint+llm · lint=staticcheck:S1009 · custom=slice-nil-compare · overlaps=google-decisions:nil-slices
+- **meta:** severity=should · scope=body · check=lint+llm · lint=staticcheck:S1009,staticcheck:S1031 · custom=slice-nil-compare · overlaps=google-decisions:nil-slices
 - **rule:** To check whether a slice is empty, always use `len(s) == 0`; do not compare it
   with `nil`, because an allocated empty slice is not nil.
 - **look for:** `s == nil` / `s != nil` used as an emptiness test (`return s == nil`,
   `if items != nil { … }` guarding processing).
-- **skip:** redundant `s != nil && len(s) > 0` — staticcheck reports it; nil comparisons
+- **skip:** redundant `s != nil && len(s) > 0` and a nil check around a `range` over the
+  slice — staticcheck reports them; nil comparisons
   that deliberately distinguish nil from empty (e.g. before serialization).
 - **example:** `return s == nil` -> `return len(s) == 0`
 
@@ -315,13 +318,14 @@ initialize structs, slices, maps and format strings.
 - **example:** `m := make(map[T1]T2, 3); m[k1] = v1; m[k2] = v2` -> `m := map[T1]T2{k1: v1, k2: v2}`
 
 ### uber:format-strings-outside-printf — Format Strings outside Printf
-- **meta:** severity=should · scope=body · check=lint+llm · lint=govet:printf~non-constant format · custom=const-format-string
+- **meta:** severity=should · scope=body · check=llm · custom=const-format-string
 - **rule:** A format string for a `Printf`-style call that is declared outside the call's
   string literal should be a `const`, so `go vet` can check it against the arguments.
 - **look for:** `msg := "…%v…"` or a package-level `var` format that is later passed with
   arguments to `fmt.Printf`, `fmt.Errorf`, `log.Printf` or a printf wrapper.
-- **skip:** a non-constant format with no further arguments — govet reports it; formats
-  chosen at run time (localization, user-supplied templates).
+- **skip:** a non-constant string passed as the format with no further arguments (text,
+  not a format: go vet reports it under uber:linting); formats chosen at run time
+  (localization, user-supplied templates).
 - **example:** `msg := "unexpected values %v, %v\n"` -> `const msg = "unexpected values %v, %v\n"`
 
 ### uber:naming-printf-style-functions — Naming Printf-style Functions

@@ -3,16 +3,17 @@
 How to structure, annotate, wrap and log errors, and when to stop the program or panic.
 
 ### google-practices:error-handling — Handle errors deliberately
-- **meta:** severity=should · scope=body · check=lint+llm · lint=errcheck, nilerr · overlaps=google-decisions:handle-errors
+- **meta:** severity=should · scope=body · check=lint+llm · lint=errcheck · overlaps=google-decisions:handle-errors
 - **rule:** Produce and consume errors deliberately: don't ignore an error or blindly pass it up;
   consider whether the current function is best placed to handle it, give new errors structure
   when callers need it, and add information the caller or callee lacks. A reasonable exception to
   not ignoring errors is orchestrating related operations where only the first error matters —
   `errgroup` provides that abstraction.
-- **look for:** errors discarded with `_` and no reason; hand-rolled `sync.WaitGroup` plus mutex
-  code that keeps the first error of a group of operations (an `errgroup.Group` fits).
-- **skip:** unchecked error results and `return nil` inside `if err != nil` — errcheck and nilerr
-  report them.
+- **look for:** an error checked and then dropped with no reason given (`if err != nil
+  { return nil }`, an empty branch); hand-rolled `sync.WaitGroup` plus mutex code that keeps
+  the first error of a group of operations (an `errgroup.Group` fits).
+- **skip:** error results that are not checked or go to `_` — errcheck reports them; a
+  deliberate skip that records or explains the error.
 
 ### google-practices:error-structure — Give errors a structure callers can check
 - **meta:** severity=should · scope=body · check=llm
@@ -39,17 +40,20 @@ How to structure, annotate, wrap and log errors, and when to stop the program or
 - **example:** `if strings.Contains(err.Error(), "duplicate")` -> `if errors.Is(err, ErrDuplicate)`
 
 ### google-practices:error-extra-info — Add only new information to errors
-- **meta:** severity=should · scope=body · check=llm · custom=noise-error-annotation
+- **meta:** severity=should · scope=body · check=lint+llm · lint=revive:string-format · custom=noise-error-annotation
 - **rule:** When annotating an error, add context the current function has and the error lacks
   (what it was trying to do) without repeating what the underlying error already says (`os`
   errors already include the path). Don't add an annotation that only says something failed —
   return the error as is.
 - **look for:** wrappers restating the callee's details (`fmt.Errorf("could not open %s: %v",
-  name, err)` around an `os.Open` error); empty annotations (`"failed: %v"`, `"error: %w"`);
-  stop words that add nothing and pile up in a chain ("failed to", "couldn't", "unable to");
+  name, err)` around an `os.Open` error); stop words and empty annotations in wraps the
+  linter does not see (`errors.Join`, `%w` in the middle, helpers such as `errors.Wrap`);
   several returns of one function with the same annotation, so the message does not tell
   which step failed.
-- **skip:** annotations adding the operation or inputs the callee does not know.
+- **skip:** annotations adding the operation or inputs the callee does not know;
+  `fmt.Errorf` wraps that open with "failed to", "unable to", "could not" or "couldn't",
+  and wraps that are only `%w`, `failed: %w` or `error: %w` — revive string-format reports
+  them.
 - **example:** `return fmt.Errorf("failed: %v", err)` -> `return err`
 
 ### google-practices:error-extra-info/wrap-verb — Choose %v or %w deliberately

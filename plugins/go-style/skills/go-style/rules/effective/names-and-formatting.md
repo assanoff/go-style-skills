@@ -15,7 +15,7 @@ interfaces and multiword identifiers.
 - **example:** `if (x > 0) {` -> `if x > 0 {`
 
 ### effective:commentary — Commentary
-- **meta:** severity=should · scope=decl · check=lint+llm · lint=revive:exported~^(?!.*(stutters|is repetitive)),revive:package-comments · overlaps=google-decisions:doc-comments,google-decisions:package-comments
+- **meta:** severity=consider · scope=decl · check=lint+llm · lint=revive:exported~(should have comment|should be of the form),revive:package-comments · overlaps=google-decisions:doc-comments,google-decisions:package-comments
 - **rule:** A comment placed immediately before a top-level declaration, with no blank
   line between, is that declaration's doc comment — the primary documentation of a
   package or command. Effective Go defers details to "Go Doc Comments", which asks
@@ -28,9 +28,12 @@ interfaces and multiword identifiers.
 - **skip:** missing doc comments on exported names, doc comments not starting with the
   name ("Go Doc Comments" convention), missing or detached package comments — revive
   reports them.
+- **note:** the section itself only says what a doc comment is; that every exported
+  name and every package has one comes from "Go Doc Comments", which it points to.
+  Hence `consider` here; google-decisions:doc-comments states it as a must.
 
 ### effective:package-names/package — Package names: choosing the name
-- **meta:** severity=should · scope=repo · check=lint+llm · lint=revive:package-naming~(underscore|MixedCaps),revive:package-directory-mismatch · overlaps=google-decisions:package-names
+- **meta:** severity=should · scope=repo · check=lint+llm · lint=revive:package-naming~^(?!.*_test" that).*(underscore|MixedCaps),revive:package-directory-mismatch · overlaps=google-decisions:package-names
 - **rule:** A package name is short, concise and evocative: one lower-case word with
   no underscores or mixedCaps, matching the base name of its source directory
   (`encoding/base64` is package `base64`). Err on the side of brevity, since every
@@ -42,7 +45,7 @@ interfaces and multiword identifiers.
   `_test` packages; names that collide with other packages, std ones included.
 
 ### effective:package-names/qualified — Package names: exported names and the qualifier
-- **meta:** severity=should · scope=decl · check=lint+llm · lint=revive:exported~(stutters|is repetitive),revive:dot-imports · overlaps=google-decisions:repetitive-with-package,google-decisions:import-dot
+- **meta:** severity=should · scope=decl · check=lint+llm · lint=revive:exported~(stutters|is repetitive) · overlaps=google-decisions:repetitive-with-package,google-decisions:import-dot
 - **rule:** Clients always refer to exported names through the package name, so use it
   as context instead of repeating it: `bufio.Reader`, not `bufio.BufReader`; when
   `Ring` is the only exported type of package `ring`, its constructor is `ring.New`,
@@ -51,9 +54,9 @@ interfaces and multiword identifiers.
   `import .`, except in tests that must run outside the package they test.
 - **look for:** `NewFoo` constructors in package `foo` whose only exported type is
   `Foo`; the package name repeated mid-name or abbreviated (`bufio.BufReader`);
-  needlessly long exported names.
-- **skip:** names starting with the package name and dot imports — revive reports
-  them (this guide allows dot imports in tests that must run outside the package).
+  needlessly long exported names; `import .` outside test files.
+- **skip:** names starting with the package name — revive reports them; dot imports
+  in tests that must run outside the package they test, which this guide allows.
 - **example:** `widget.NewWidget()` -> `widget.New()`
 
 ### effective:Getters — Getters

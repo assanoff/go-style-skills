@@ -34,15 +34,16 @@ value receivers.
 - **example:** `f := new(File); f.fd = fd; f.name = name; return f` -> `return &File{fd: fd, name: name}`
 
 ### effective:allocation_make — Allocation with make
-- **meta:** severity=should · scope=body · check=lint+llm · lint=staticcheck:S1019 · custom=new-ref-type
+- **meta:** severity=should · scope=body · check=lint+llm · lint=staticcheck:S1019~should use make.(?!(<-)?chan\b) · custom=new-ref-type
 - **rule:** `make` creates only slices, maps and channels, and returns an initialized
   (not zeroed) value of type `T`, not `*T`. `new([]int)` gives a pointer to a nil
   slice, which is rarely useful; to get an explicit pointer, allocate with `new` or
   take a variable's address.
 - **look for:** `new([]T)`, `new(map[K]V)`, `new(chan T)`; a pointer to a slice or map
   created only to assign `*p = make(...)`.
-- **skip:** redundant `make` arguments, such as a capacity equal to the length —
-  staticcheck S1019 reports them.
+- **skip:** a capacity equal to the length (`make([]int, n, n)`) — staticcheck S1019
+  reports it; `make(chan T, 0)`, which the guide itself writes for an unbuffered
+  channel.
 - **example:** `p := new([]int); *p = make([]int, 100, 100)` -> `v := make([]int, 100)`
 
 ### effective:arrays — Arrays
@@ -113,15 +114,18 @@ value receivers.
   predates the built-in `min` and `max` (Go 1.21).
 
 ### effective:append — Append
-- **meta:** severity=should · scope=body · check=lint+llm · lint=staticcheck:S1011,gocritic:appendAssign
+- **meta:** severity=should · scope=body · check=lint+llm · lint=staticcheck:S1011,staticcheck:SA4010
 - **rule:** `append` returns the updated slice because the underlying array may change,
-  so use its result, normally assigning it back to the same slice
-  (`x = append(x, 4, 5, 6)`). Append a whole slice in one call with `...`
+  so use its result (`x = append(x, 4, 5, 6)`); a function that appends to a slice it
+  was given must return the slice. Append a whole slice in one call with `...`
   (`x = append(x, y...)`).
 - **look for:** two slices appended from the same base (`a := append(s, 1)`,
-  `b := append(s, 2)`) and then used as if independent — they may share one array.
-- **skip:** element-by-element append loops (staticcheck S1011) and results assigned
-  to a different slice (gocritic `appendAssign`) — linters report them.
+  `b := append(s, 2)`) and then used as if independent — they may share one array; a
+  function that appends to its slice parameter and returns nothing, so the caller
+  never sees the result.
+- **skip:** element-by-element append loops (staticcheck S1011) and an `append` whose
+  result is never read (SA4010) — linters report them; a result kept under a new
+  name (`all := append(base, extra...)`), which the guide does not object to.
 
 ### effective:constants — Constants
 - **meta:** severity=consider · scope=decl · check=llm
@@ -152,7 +156,7 @@ value receivers.
   I/O; Effective Go's example reads environment variables and calls `log.Fatal`.
 
 ### effective:pointers_vs_values — Pointers vs. Values
-- **meta:** severity=should · scope=decl · check=lint+llm · lint=revive:modifies-value-receiver,staticcheck:SA4005 · overlaps=google-decisions:receiver-type
+- **meta:** severity=should · scope=decl · check=lint+llm · lint=staticcheck:SA4005 · overlaps=google-decisions:receiver-type
 - **rule:** Methods can be defined on any named type except a pointer or an interface.
   Value methods can be invoked on values and pointers, pointer methods only on
   pointers (for addressable values the compiler inserts `&`). A method that must
@@ -161,7 +165,10 @@ value receivers.
   method, so pass `&v`.
 - **look for:** value-receiver methods returning an updated copy of a slice-typed
   receiver where a pointer receiver would update the caller's value (the guide's
-  `ByteSlice.Append` turned into `Write`).
-- **skip:** assignments to a value receiver's fields — revive and staticcheck SA4005
-  report them; methods that copy, modify and return the receiver (`WithX` style).
+  `ByteSlice.Append` turned into `Write`); a value-receiver method that assigns to
+  the receiver and whose caller relies on the change (a setter, a counter), where
+  the write is also read inside the method and so escapes the linter.
+- **skip:** an assignment to a value receiver's field that is never read — staticcheck
+  SA4005 reports it; methods that copy, modify and return or use the receiver
+  (`WithX` style, a scratch copy).
 - **example:** `func (c Counter) Inc() { c.n++ }` -> `func (c *Counter) Inc() { c.n++ }`

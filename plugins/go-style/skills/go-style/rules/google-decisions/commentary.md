@@ -25,16 +25,23 @@ runnable examples, named result parameters, and package comments.
 - **example:** a 300-character comment line -> the same paragraph wrapped at about 80 columns
 
 ### google-decisions:doc-comments/exported — Doc comments: exported names
-- **meta:** severity=must · scope=decl · check=lint+llm · lint=revive:exported~^(?!.*(stutters|is repetitive)),gocritic:docStub
+- **meta:** severity=must · scope=decl · check=lint+llm · lint=revive:exported~should have comment,gocritic:docStub
 - **rule:** Every top-level exported name must have a doc comment, written for users of the
-  package: full sentences that begin with the name, optionally preceded by an article
-  ("A Request represents …").
+  package.
 - **look for:** comments that begin with the name but tell a user nothing (restate the name,
   describe internals instead of behavior); undocumented exported names in `package main`,
   which revive skips.
-- **skip:** missing or misnamed doc comments revive reports; stub comments gocritic reports;
-  an article before a function or variable name — the guide allows it, revive flags it.
+- **skip:** missing doc comments revive reports; stub comments gocritic reports; the form
+  of the comment (google-decisions:doc-comments/form).
 - **example:** `// encode the request` -> `// Encode writes the JSON encoding of req to w.`
+
+### google-decisions:doc-comments/form — Doc comments: begin with the name
+- **meta:** severity=should · scope=decl · check=lint · lint=revive:exported~should be of the form
+- **rule:** A doc comment is made of full sentences and begins with the name of what it
+  describes; an article may precede the name ("A Request represents …").
+- **skip:** reviewers skip it — revive reports a doc comment that begins otherwise (the
+  linter config lets a leading article through on any declaration, as the guide does).
+- **example:** `// This function encodes the request.` -> `// Encode writes the JSON encoding of req to w.`
 
 ### google-decisions:doc-comments/unexported — Doc comments: unobvious unexported code
 - **meta:** severity=should · scope=body · check=llm
@@ -54,8 +61,9 @@ runnable examples, named result parameters, and package comments.
   end-of-line struct field comments, need neither capitals nor punctuation.
 - **look for:** doc comments that are fragments or start with a lowercase ordinary word
   (`// returns the user`); multi-sentence comments missing capitals or punctuation.
-- **skip:** a missing final period on declaration comments (godot reports it); end-of-line
-  and field phrases (`// optional; default: 20`); sentences starting with an identifier.
+- **skip:** a missing final period on declaration comments (godot reports it; a comment
+  that ends in a quotation, a TODO or a list item is left alone); end-of-line and field
+  phrases (`// optional; default: 20`); sentences starting with an identifier.
 - **example:** `// returns the user` -> `// User returns the user with the given ID.`
 
 ### google-decisions:examples — Examples

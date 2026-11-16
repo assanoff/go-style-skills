@@ -16,18 +16,21 @@ and repetition between a name and its package, type or context.
 - **example:** `const _defaultPort = 8080` -> `const defaultPort = 8080`
 
 ### google-decisions:package-names/form — Package names: lowercase letters and digits
-- **meta:** severity=must · scope=repo · check=lint · lint=revive:package-naming~(underscore|MixedCaps)
+- **meta:** severity=must · scope=repo · check=lint+llm · lint=revive:package-naming~^(?!.*_test" that).*(underscore|MixedCaps)
 - **rule:** Package names use only lowercase letters and digits (`k8s`, `oauth2`); multi-word
   names stay unbroken (`tabwriter`, not `tabWriter` or `tab_writer`). Underscores are allowed
   only in packages imported solely by generated code and in test packages: the `_test` suffix
   for black-box tests and package examples (`linkedlist_test`, not `linked_list_test`) and
   underscored integration-test packages (`linked_list_service_test`).
-- **skip:** integration-test packages such as `linked_list_service_test` (revive strips only
-  the final `_test` and flags them); packages imported only by generated code.
+- **look for:** a `_test` package whose name before the suffix has an underscore and
+  which is the black-box test of one package (`linked_list_test` for `linkedlist`).
+- **skip:** names revive reports (it is told nothing of `_test` packages, since it cannot
+  tell an integration-test package such as `linked_list_service_test`, which is fine);
+  packages imported only by generated code.
 - **example:** `package tab_writer` -> `package tabwriter`
 
 ### google-decisions:package-names/uninformative — Package names: informative and hard to shadow
-- **meta:** severity=should · scope=repo · check=lint+llm · lint=revive:package-naming~(bad package name|root level|conflicts with)
+- **meta:** severity=should · scope=repo · check=lint+llm · lint=revive:package-naming~(bad package name|root level)
 - **rule:** Choose concise, informative names that callers will not want to rename on import:
   avoid `util`, `utility`, `common`, `helper`, `model`, `testhelper` and the like, and avoid
   names likely to be shadowed by common local variable names (`usercount`, not `count`).
@@ -36,8 +39,8 @@ and repetition between a name and its package, type or context.
   `data`); long multi-word names that are not concise.
 - **skip:** names revive reports; revive's extra list also flags `api`, which the guide does
   not name — judge it on informativeness.
-- **note:** revive's collision-with-std finding (`http`, `json`, `url`) is mapped here: such
-  names force renames, and good package names should not need renaming (import-renaming).
+- **note:** revive's collision-with-std finding (`http`, `json`, `url`) is reported under
+  google-practices:shadowing, which is where the guides name it.
 
 ### google-decisions:receiver-names — Receiver names
 - **meta:** severity=must · scope=decl · check=lint+llm · lint=revive:receiver-naming,staticcheck:ST1016
@@ -77,10 +80,11 @@ and repetition between a name and its package, type or context.
   `xmlAPI`). Initialisms containing a lowercase letter keep their prose form (`gRPC`, `iOS`,
   `DDoS`) unless the first letter must change for exportedness; then the whole initialism takes
   one case (`GRPC`, `IOS`, `ddos`). Ordinary abbreviations stay word-cased (`Txn`, not `TXN`).
-- **look for:** initialisms outside revive's list (`Db`, `Grpc`, `Ios`, `DDOS`, `Aws`, `Jwt`);
+- **look for:** initialisms outside revive's list (`Grpc`, `Ios`, `DDOS`, `Aws`, `Jwt`);
   mixed runs revive cannot split (`XMLApi`, `XmlAPI`); all-caps abbreviations (`TXN`);
   interface method names, which revive does not check.
-- **skip:** cases revive reports (its list covers ID, URL, HTTP, JSON, API, XML, SQL and more).
+- **skip:** cases revive reports (its list covers ID, URL, HTTP, JSON, API, XML, SQL and
+  more; the linter config adds DB).
 - **example:** `func newDbConn()` -> `func newDBConn()`
 
 ### google-decisions:getters — Getters

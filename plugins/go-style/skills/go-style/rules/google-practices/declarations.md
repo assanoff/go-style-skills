@@ -28,6 +28,13 @@ channel direction.
   `new(T)` (non-decisions in google-decisions); empty slices (google-decisions:nil-slices).
 - **example:** `coords := Point{X: 0, Y: 0}; json.Unmarshal(b, &coords)` -> `var coords Point`
 
+### google-practices:vardeclzero/nil-map — Declaring variables with zero values: maps
+- **meta:** severity=must · scope=body · check=lint · lint=staticcheck:SA5000
+- **rule:** A map must be initialized before it is modified: a zero-value map
+  (`var m map[K]V`) can be read, and a write to it panics.
+- **skip:** reviewers skip it — staticcheck SA5000 reports an assignment to a nil map.
+- **example:** `var seen map[string]bool; seen[k] = true` -> `seen := make(map[string]bool)`
+
 ### google-practices:vardeclzero/uncopyable — Declaring variables with zero values: uncopyable fields
 - **meta:** severity=should · scope=decl · check=lint+llm · lint=govet:copylocks · overlaps=google-decisions:copying
 - **rule:** A field that must not be copied (a `sync.Mutex`, a `bytes.Buffer`) can be a value

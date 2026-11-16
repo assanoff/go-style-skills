@@ -85,7 +85,7 @@ parallelism, and on reporting errors, panicking and recovering.
   genuinely impossible states.
 
 ### effective:recover — Recover
-- **meta:** severity=should · scope=body · check=lint+llm · lint=revive:defer~recover must be called · overlaps=google-practices:when-to-panic · conflicts=uber:dont-panic/production
+- **meta:** severity=should · scope=body · check=lint+llm · lint=revive:defer~executing recover immediately · overlaps=google-practices:when-to-panic · conflicts=uber:dont-panic/production
 - **rule:** `recover` stops the unwinding only when called directly by a deferred
   function; anywhere else it returns nil. A package may use panic and recover to
   simplify its internal error handling (e.g. a parser), but must turn panics into
@@ -93,8 +93,10 @@ parallelism, and on reporting errors, panicking and recovering.
   its own panic type, so unexpected run-time errors keep unwinding.
 - **look for:** exported functions that let internal panics escape; recover handlers
   converting any panic value into an error without checking its type; `recover()`
-  in a helper called by the deferred function, where it returns nil.
-- **skip:** `recover()` outside deferred code and `defer recover()` — revive `defer`
-  reports them (it also flags a named function that is itself deferred, which works).
+  outside deferred code, or in a helper that the deferred function calls, where it
+  returns nil.
+- **skip:** `defer recover()` and `defer f(recover())` — revive `defer` reports them;
+  a named function that calls `recover()` and is itself deferred
+  (`defer handlePanic(&err)`), which works.
 - **note:** Effective Go also recovers per server goroutine to log failures without
   killing the others; Google best practices (higher priority) advise against that.
