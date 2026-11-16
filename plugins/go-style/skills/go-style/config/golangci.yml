@@ -330,6 +330,20 @@ linters:
       # Table tests and subtests repeat by design and inflate complexity scores.
       - path: _test\.go$
         linters: [dupl, gocognit]
+      # A failed type assertion in a test panics and fails the test, which is
+      # what the test wants; the guides ask for comma-ok where code must go on.
+      - path: _test\.go$
+        linters: [forcetypeassert]
+      # best-practices#globals is about the state of a program; its own examples
+      # keep test fixtures in package variables of the test file.
+      - path: _test\.go$
+        linters: [gochecknoglobals]
+      # decisions#nil-slices prefers nil for a slice variable that is declared
+      # empty. revive also reports an empty slice written as a struct field, a
+      # call argument or an element, where the guides have no preference.
+      - linters: [revive]
+        text: enforce-slice-style
+        source: '(:\s+|[,{(]\s*)\[\]\S*\{\}|(:\s+|[,{]\s*)make\(\[\]'
 
 formatters:
   enable:

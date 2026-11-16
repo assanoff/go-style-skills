@@ -2,3 +2,5 @@
 __pycache__/
 # Runs and reports of the go-style skills (each also carries its own .gitignore).
 .go-style/
+# The standalone skill zip built by tools/package.
+dist/

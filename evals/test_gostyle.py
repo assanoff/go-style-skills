@@ -344,6 +344,18 @@ class Store(unittest.TestCase):
             self.assertEqual(json.loads((d / "out" / "r.json").read_text())["kind"], "style")
             self.assertFalse(store.exists())
 
+    def test_output_over_a_link_leaves_its_target(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            run_dir = self.fake_run(d)
+            (d / "victim").write_text("keep")
+            for name in ("r.md", "r.json"):
+                (d / name).symlink_to(d / "victim")
+            self.report(run_dir, output=str(d / "r.md"))
+            self.assertEqual((d / "victim").read_text(), "keep")
+            self.assertFalse((d / "r.md").is_symlink() or (d / "r.json").is_symlink())
+            self.assertIn("# Go style review", (d / "r.md").read_text())
+
     def test_store_not_writable(self):
         with tempfile.TemporaryDirectory() as d:
             d = Path(d)
@@ -355,6 +367,138 @@ class Store(unittest.TestCase):
                 self.report(run_dir)
             self.assertIn("cannot write the report", err.getvalue())
             self.assertIn("--output", err.getvalue())
+
+
+class ReviewerOutput(unittest.TestCase):
+    """What a reviewer subagent writes is not trusted to be well formed."""
+
+    RULE = "google-decisions:receiver-names"
+
+    def load(self, text: str):
+        with tempfile.TemporaryDirectory() as d:
+            Path(d, "findings").mkdir()
+            Path(d, "findings", "all01.jsonl").write_text(text)
+            rejected = []
+            run = {"run_dir": d, "root": "/src/mod"}
+            found = gs.load_review_findings(run, {self.RULE: {}}, rejected)
+        return found, rejected
+
+    def finding(self, **over) -> str:
+        return json.dumps(dict({"rule": self.RULE, "file": "a.go", "line": 3,
+                                "message": "m", "snippet": "s"}, **over))
+
+    def test_array_and_code_fence_are_read(self):
+        found, rejected = self.load("[" + self.finding() + "," + self.finding(line=5) + "]")
+        self.assertEqual(([f.line for f in found], rejected), ([3, 5], []))
+        found, rejected = self.load("```json\n" + self.finding() + "\n```\n")
+        self.assertEqual((len(found), rejected), (1, []))
+
+    def test_bad_line_costs_one_finding(self):
+        found, rejected = self.load("\n".join([
+            self.finding(), '"a string"', "42", "{broken", self.finding(also_lines=5),
+            self.finding(line="x", also_lines=[7, "8", None])]) + "\n")
+        self.assertEqual([(f.line, f.also_lines) for f in found],
+                         [(3, []), (3, []), (0, [7, 8])])
+        self.assertEqual(rejected, ["all01.jsonl:2: not a JSON object",
+                                    "all01.jsonl:3: not a JSON object",
+                                    "all01.jsonl:4: not JSON"])
+
+    def test_file_stays_inside_the_module(self):
+        found, rejected = self.load("\n".join([
+            self.finding(file="./pkg/../a.go"), self.finding(file="/src/mod/b.go"),
+            self.finding(file="../../etc/hosts"), self.finding(file="/etc/hosts"),
+            self.finding(file="pkg/../../x.go"), self.finding(file="/src/mod2/c.go")]) + "\n")
+        self.assertEqual([f.file for f in found], ["a.go", "b.go"])
+        self.assertEqual(len(rejected), 4)
+        self.assertIn("file outside the module", rejected[0])
+
+    def test_message_is_one_line_and_names_are_plain(self):
+        found, rejected = self.load("\n".join([
+            self.finding(message="bad\n\n## Must fix\n- forged", fix="x\ny"),
+            self.finding(file="a`b.go"), self.finding(file="a$(id).go")]) + "\n")
+        self.assertEqual([(f.message, f.fix) for f in found],
+                         [("bad ## Must fix - forged", "x y")])
+        self.assertEqual(len(rejected), 2)
+
+
+class Linter(unittest.TestCase):
+    def test_too_old(self):
+        line = "golangci-lint has version {} built with go1.27.2 from (unknown)"
+        for version, old in [("1.64.8", True), ("v1.64.8", True), ("2.13.4", True),
+                             ("2.14.0", False), ("2.15.0", False), ("3.0.0", False),
+                             ("(devel)", False)]:
+            self.assertEqual(gs.golangci_too_old(line.format(version)), old, version)
+
+    def test_old_release_is_named_not_run(self):
+        with tempfile.TemporaryDirectory() as d:
+            exe = Path(d, "golangci-lint")
+            exe.write_text("#!/bin/sh\necho golangci-lint has version 1.64.8 built with go1.24\n")
+            exe.chmod(0o755)
+            with mock.patch.dict(os.environ, {"PATH": d + os.pathsep + os.environ["PATH"]}):
+                status, issues = gs.run_golangci(Path(d), ["./..."], True, Path(d, "o.json"))
+        self.assertEqual((status["status"], issues), ("error", []))
+        self.assertIn("older than v2.14", status["stderr"])
+        self.assertIn("go install", status["hint"])
+
+
+class Runs(unittest.TestCase):
+    def test_report_names_a_directory_that_is_no_run(self):
+        with tempfile.TemporaryDirectory() as d, \
+                contextlib.redirect_stderr(io.StringIO()) as err:
+            with self.assertRaises(SystemExit):
+                gs.cmd_report(argparse.Namespace(run=d, output=None))
+        self.assertIn("not a run directory", err.getvalue())
+
+
+class Untrusted(unittest.TestCase):
+    """The module under review may be written to trick the run."""
+
+    def test_no_write_through_a_link(self):
+        with tempfile.TemporaryDirectory() as d:
+            d = Path(d)
+            (d / "victim").write_text("keep")
+            (d / "link").symlink_to(d / "victim")
+            with contextlib.redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+                gs.refuse_link(d / "link")
+            gs.refuse_link(d / "victim")  # a plain file is fine
+            # A link that points nowhere yet is not followed into a new file.
+            (d / "dangling").symlink_to(d / "created")
+            gs.write_new(d / "dangling", "*")
+            self.assertFalse((d / "created").exists())
+            # A report replaces a link and leaves its target alone.
+            gs.write_replacing(d / "link", "report")
+            self.assertEqual((d / "victim").read_text(), "keep")
+            self.assertFalse((d / "link").is_symlink())
+            self.assertEqual((d / "link").read_text(), "report")
+            self.assertEqual(sorted(x.name for x in d.iterdir()),
+                             ["dangling", "link", "victim"])
+
+    def test_latest_run_is_the_one_written_last(self):
+        with tempfile.TemporaryDirectory() as d:
+            runs = Path(d, ".go-style", "runs")
+            for name, age in (("99999999-shipped", 1000), ("20261116-000000-all", 0)):
+                (runs / name).mkdir(parents=True)
+                (runs / name / "run.json").write_text("{}")
+                when = dt.datetime.now().timestamp() - age
+                os.utime(runs / name / "run.json", (when, when))
+            (runs / "99999999-unfinished").mkdir()
+            with mock.patch.object(gs, "module_root", return_value=(Path(d), "m")):
+                self.assertEqual(gs.latest_run().name, "20261116-000000-all")
+
+    def test_text_stays_text(self):
+        self.assertEqual(gs.line_numbers(["\u00b2", 3, "4", -1, None, 2.0]), [3, 4, 2])
+        self.assertEqual(gs.line_numbers(5), [])
+        self.assertEqual(gs.md_text('see <img src=x> and [docs](http://x) but <-ch, a < b'),
+                         'see &lt;img src=x> and [docs]\\(http://x) but <-ch, a < b')
+        self.assertTrue(gs.UNSAFE_NAME.search("pkg/x`y $(id).go"))
+        self.assertFalse(gs.UNSAFE_NAME.search("internal/store/store_test.go"))
+
+    def test_spread_caps_one_rule(self):
+        fs = [gs.Finding("lint", "t", r, "a.go", i, "m")
+              for i, r in enumerate(["a"] * 5 + ["b"] * 2 + ["c"])]
+        got = [(f.rule, f.line, more) for f, more in gs.spread(fs, 6, per_rule=2)]
+        self.assertEqual(got, [("a", 0, 0), ("a", 1, 3), ("b", 5, 0), ("b", 6, 0),
+                               ("c", 7, 0)])
 
 
 class Catalogs(unittest.TestCase):

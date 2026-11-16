@@ -5,18 +5,19 @@ concision, maintainability and consistency — consistency only breaks ties and 
 overrides the others.
 
 ### google-guide:clarity-purpose — What is the code actually doing?
-- **meta:** severity=should · scope=body · check=lint+llm · lint=gocognit
+- **meta:** severity=should · scope=body · check=llm
 - **rule:** Clarity is judged by the reader, not the author: code should be easy to read
   rather than easy to write, and it should be easy to see what it does. Where a reader
   may be uncertain or need prior knowledge, invest in making the purpose clear — more
   descriptive names, extra comments, whitespace and comments that break the code into
   steps, or extraction into separate functions.
-- **look for:** gocognit hotspots and long functions running several steps together with
+- **look for:** long functions running several steps together with
   no blank line, comment or helper call marking them; terse names (`d`, `tmp2`, `res`)
   for values used across many lines; dense expressions or call chains whose intent must
   be decoded; logic relying on an invariant or protocol stated nowhere nearby.
-- **skip:** the complexity score itself — gocognit reports it; name the concrete obstacle.
-  Flat runs of simple checks that read easily despite a high score.
+- **skip:** a complexity score as such — the guide sets no limit (simplicity/hotspots
+  carries the linter's hint); name the concrete obstacle. Flat runs of simple checks
+  that read easily.
 
 ### google-guide:clarity-rationale — Why is the code doing what it does?
 - **meta:** severity=should · scope=body · check=llm
@@ -34,20 +35,28 @@ overrides the others.
 - **note:** the guide's loop-variable example predates Go 1.22 per-iteration loop variables.
 
 ### google-guide:simplicity — Simplicity
-- **meta:** severity=should · scope=body · check=lint+llm · lint=nestif
+- **meta:** severity=should · scope=body · check=llm
 - **rule:** Write code the simplest way that meets its behavior and performance goals:
   readable top to bottom, not assuming the reader already knows what it does or
   remembers all preceding code, no needless abstraction layers, plain names for mundane
   things, a visible flow of values and decisions; "clever" code rarely qualifies. Add
   complexity deliberately (performance, many disparate clients) with docs, tests and
   examples; code that is complex when its purpose is simple should be reworked.
-- **look for:** nestif hotspots and arrow code that early returns would flatten; a flag or
+- **look for:** arrow code that early returns would flatten; a flag or
   state variable set in one branch and consumed far below; wrappers or layers that only
   forward calls; clever one-liners, nested closures or generic tricks where plain
   statements would do; performance tricks (buffer reuse, pooling) with no comment or
   benchmark justifying them.
 - **skip:** documented, justified complexity; extra implementation work that makes an API
   easier to call correctly, or the reverse — the guide accepts both trade-offs.
+
+### google-guide:simplicity/hotspots — Simplicity: complexity hotspots
+- **meta:** severity=consider · scope=body · check=lint · lint=gocognit
+- **rule:** The guide names no complexity limit. A function the linter scores as very
+  complex is a place to look for what the simplicity and clarity principles describe —
+  steps run together, deep nesting, state carried far — and not a violation in itself.
+- **skip:** reviewers skip it — the score is a hint; a concrete obstacle goes under
+  google-guide:simplicity or google-guide:clarity-purpose.
 
 ### google-guide:least-mechanism — Least mechanism
 - **meta:** severity=should · scope=body · check=lint+llm · lint=exptostd · custom=flag-set-in-test
@@ -56,12 +65,15 @@ overrides the others.
   else a library already established in the codebase, and only then a new dependency or
   your own code. Sophisticated machinery needs a reason — complexity is easy to add and
   hard to remove.
-- **look for:** goroutines, channels, `select`, `sync.Once` or atomics where a plain value
-  or mutex suffices; reflection where a concrete type, small interface or generics works;
+- **look for:** concurrency machinery (goroutines, worker pools, `sync.Once`, atomics)
+  where straight-line code and a plain value suffice; reflection where a concrete type,
+  small interface or generics works;
   set, collection or functional-helper libraries where `map[K]bool`, a loop or
   `slices`/`maps` works; hand-rolled std helpers; registries or factories for one case;
   tests calling `flag.Set` instead of assigning the flag-bound variable.
-- **skip:** `flag.Set` in tests of the CLI itself; set libraries for operations impossible or
+- **skip:** a channel where a mutex would also do, or the reverse — a channel is a core
+  construct and the choice is local (google-guide:local-consistency); `flag.Set` in tests
+  of the CLI itself; set libraries for operations impossible or
   overly complicated with a map; x/exp imports with std equivalents — exptostd reports.
 - **example:** `seen := sets.New[string]()` -> `seen := map[string]bool{}`
 
@@ -90,10 +102,13 @@ overrides the others.
 - **look for:** an interface or wrapper type with one implementation and no consumer
   needing substitution; abstractions mirroring code layout (base structs for reuse, a
   layer per framework step) rather than domain concepts; exported options, parameters or
-  methods nobody uses; unstated preconditions (non-nil, sorted, lock held); a god object
+  methods nobody uses; unstated preconditions (non-nil, sorted, lock held); an interface
+  that is used correctly only by knowing its implementation (call order, goroutine
+  safety, who closes) with that stated neither in its doc nor at the call site; a god object
   passed to read one field; exported signatures that must break to gain an option.
-- **skip:** unexported dead code — `unused` reports it; interface specifics belong to
-  google-decisions:interfaces and google-practices:avoid-unnecessary-interfaces.
+- **skip:** unexported dead code — `unused` reports it; whether and where to define an
+  interface belongs to google-decisions:interfaces and
+  google-practices:avoid-unnecessary-interfaces.
 
 ### google-guide:maintainability/tests — Maintainability: test suite
 - **meta:** severity=should · scope=test · check=llm
@@ -106,7 +121,7 @@ overrides the others.
   google-decisions:useful-test-failures and related testing rules.
 
 ### google-guide:maintainability/hidden-details — Maintainability: easy-to-miss details
-- **meta:** severity=should · scope=body · check=lint+llm · lint=gocritic:sloppyReassign,gocritic:boolExprSimplify~![(]|!! · custom=if-init-assign
+- **meta:** severity=consider · scope=body · check=lint+llm · lint=gocritic:sloppyReassign,gocritic:boolExprSimplify~![(]|!! · custom=if-init-assign
 - **rule:** Don't hide important details where they are easy to overlook — a lone `=` vs
   `:=`, a `!` inside a long condition, an edge case buried in a helper. Such code isn't
   wrong, but write it more explicitly (separate statements, named sub-expressions) or
@@ -132,7 +147,7 @@ overrides the others.
   google-decisions:receiver-names; distinct roles of one type (`src`, `dst`).
 
 ### google-guide:maintainability/dependencies — Maintainability: minimal dependencies
-- **meta:** severity=consider · scope=repo · check=llm
+- **meta:** severity=consider · scope=body · check=llm
 - **rule:** Minimize dependencies, explicit and implicit: fewer packages means less code that
   can change behavior, and not relying on internal or undocumented behavior avoids
   breakage when that behavior changes.
@@ -143,7 +158,7 @@ overrides the others.
 - **skip:** standard-library imports; modules the project already uses for that purpose.
 
 ### google-guide:consistency — Consistency
-- **meta:** severity=consider · scope=repo · check=llm · conflicts=uber:be-consistent
+- **meta:** severity=consider · scope=body · check=llm · conflicts=uber:be-consistent
 - **rule:** Code should look, feel and behave like similar code in the codebase, the team
   or package, and the file; consistency within a package matters most. It never
   overrides the principles above or documented style, and package consistency doesn't

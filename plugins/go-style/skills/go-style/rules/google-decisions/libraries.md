@@ -86,7 +86,11 @@ Decisions on flags, logging, `context.Context` and `crypto/rand`; advice written
   than `context.Background()`; helpers, test-double setup and other functions called from the
   test body that need a context get it passed explicitly as a parameter.
 - **look for:** helpers that obtain their own context (calling `t.Context()` internally)
-  instead of accepting `ctx`.
+  instead of accepting `ctx`; `t.Context()` used inside a `t.Cleanup` function, where it is
+  already canceled (use `context.Background()` or `context.WithoutCancel`); a subtest using
+  the parent test's context instead of its own.
+- **note:** usetesting also reports `context.Background()` inside `t.Cleanup`, which is what
+  the guide asks for there: such a hit is wrong.
 - **skip:** `context.Background()`/`TODO()` in tests and helpers with a `testing.TB` in scope
   — usetesting reports them; modules targeting Go older than 1.24.
 - **example:** `ctx := context.Background()` in `TestFoo` -> `ctx := t.Context()`

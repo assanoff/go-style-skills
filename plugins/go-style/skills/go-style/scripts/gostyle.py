@@ -27,6 +27,7 @@ import dataclasses
 import datetime as dt
 import json
 import os
+import posixpath
 import re
 import shutil
 import subprocess
@@ -83,6 +84,11 @@ CHUNK_LINES = 2500            # source lines per reviewer task
 BUNDLE_SPLIT_CHARS = 70_000   # split a rule bundle above this size
 TASK_BUNDLE_CHARS = 90_000    # rules one small-scope task may read (~22k tokens)
 OUTLINE_PART_CHARS = 110_000  # split the outline above this size
+
+# The oldest golangci-lint that accepts config/golangci.yml, and the command
+# that builds a current one with the user's own Go.
+MIN_GOLANGCI = (2, 14)
+GOLANGCI_INSTALL = "go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest"
 
 # The report store, shared with go-audit, which lists it: reports of all modules
 # in the home directory. Its layout and the fields every report's .json twin
@@ -319,7 +325,7 @@ def run_cmd(cmd, cwd=None, env=None, timeout=None, stdin=None):
     does not exist. A timeout raises subprocess.TimeoutExpired."""
     try:
         return subprocess.run(cmd, cwd=cwd, env=env, timeout=timeout, input=stdin,
-                              capture_output=True, text=True)
+                              capture_output=True, encoding="utf-8", errors="replace")
     except FileNotFoundError:
         return None
 
@@ -385,6 +391,45 @@ def go_list(cwd: Path, patterns: list[str]) -> list[dict]:
     return pkgs
 
 
+NEW_FILE = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_NOFOLLOW", 0)
+
+
+def refuse_link(path: Path) -> None:
+    """Dies when path is a symbolic link. A run writes into .go-style in the
+    module under review, and a repository may ship that directory, or an
+    entry of it, as a link to a place outside the module."""
+    if path.is_symlink():
+        die(f"{path} is a symbolic link, and a run does not write through one: "
+            "remove it, or pass --out")
+
+
+def write_new(path: Path, text: str) -> None:
+    """Creates path with text; leaves alone what is there already."""
+    try:
+        fd = os.open(path, NEW_FILE, 0o644)
+    except FileExistsError:
+        return
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        f.write(text)
+
+
+def write_replacing(path: Path, text: str) -> None:
+    """Writes text to path through a new file next to it, so that a symbolic
+    link at path is replaced and not written through."""
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        with os.fdopen(os.open(tmp, NEW_FILE, 0o644), "w", encoding="utf-8") as f:
+            f.write(text)
+        os.replace(tmp, path)
+    finally:
+        if tmp.is_symlink() or tmp.exists():
+            tmp.unlink()
+
+
+# A file name that would not stay inside quotes or a code span when a task
+# file, a command or the report repeats it.
+UNSAFE_NAME = re.compile(r"[\x00-\x1f\x7f`$\"'\\]")
+
 GENERATED_RE = re.compile(r"^// Code generated .* DO NOT EDIT\.$")
 
 
@@ -418,7 +463,9 @@ def count_lines(path: Path) -> int:
 
 
 def git(root: Path, *args) -> str | None:
-    res = run_cmd(["git", *args], cwd=root)
+    # The repository under review may come with a .git/config of its own:
+    # core.fsmonitor names a program that git status would run.
+    res = run_cmd(["git", "-c", "core.fsmonitor=false", *args], cwd=root)
     if res is None or res.returncode != 0:
         return None
     return res.stdout
@@ -443,9 +490,10 @@ HUNK_RE = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
 
 # Every git diff parsed here: no context, and the a/ b/ prefixes and paths from
 # the top of the repository whatever diff.noprefix, diff.mnemonicPrefix or
-# diff.relative say.
-DIFF_FLAGS = ("--unified=0", "--no-color", "--no-ext-diff", "--no-relative",
-              "--src-prefix=a/", "--dst-prefix=b/")
+# diff.relative say; no external diff or textconv program, which the
+# configuration of the repository under review could name.
+DIFF_FLAGS = ("--unified=0", "--no-color", "--no-ext-diff", "--no-textconv",
+              "--no-relative", "--src-prefix=a/", "--dst-prefix=b/")
 
 # What a diff run reviews, as run.json keeps it in "changes_of".
 CHANGES_OF = {"base": "changed", "staged": "staged", "unstaged": "unstaged or untracked",
@@ -614,6 +662,10 @@ def collect_scope(root: Path, targets: list[str], include_tests: bool):
                 rel = name if rel_dir == "." else f"{rel_dir}/{name}"
                 if only_files and rel not in only_files:
                     continue
+                if UNSAFE_NAME.search(rel):
+                    pkg_errors.append(f"{json.dumps(rel)}: left out, its name has "
+                                      "quote, shell or control characters")
+                    continue
                 full = root / rel
                 if is_generated(full):
                     skipped_generated += 1
@@ -643,13 +695,28 @@ def map_issue(rules: list[Rule], linter: str, check: str | None, text: str) -> l
     return hits
 
 
+def golangci_too_old(version_output: str) -> bool:
+    """Reports whether golangci-lint --version names a release older than the
+    config needs. A build without a release number (devel) is not too old."""
+    m = re.search(r"version v?(\d+)\.(\d+)", version_output)
+    return bool(m) and (int(m.group(1)), int(m.group(2))) < MIN_GOLANGCI
+
+
 def run_golangci(root: Path, patterns: list[str], include_tests: bool, out: Path):
     exe = shutil.which("golangci-lint")
     if exe is None:
-        return {"status": "missing"}, []
+        return {"status": "missing", "hint": f"install it: `{GOLANGCI_INSTALL}`"}, []
     ver = run_cmd([exe, "--version"])
-    m = re.search(r"version (\S+)", ver.stdout if ver else "")
+    ver_out = ver.stdout if ver else ""
+    m = re.search(r"version (\S+)", ver_out)
     version = f"golangci-lint {m.group(1)}" if m else "golangci-lint (unknown version)"
+    need = "v%d.%d" % MIN_GOLANGCI
+    if golangci_too_old(ver_out):
+        # An old release rejects the flags or the config with an error that
+        # does not name the cause, so say it here.
+        return {"status": "error", "version": version,
+                "stderr": f"{version} is older than {need}, which the linter config needs",
+                "hint": f"install a current one: `{GOLANGCI_INSTALL}`"}, []
     cmd = [exe, "run", "--config", str(CONFIG), "--output.json.path", str(out),
            "--output.text.path", os.devnull, "--show-stats=false",
            "--issues-exit-code=0", "--allow-parallel-runners",
@@ -662,6 +729,9 @@ def run_golangci(root: Path, patterns: list[str], include_tests: bool, out: Path
     if res.returncode != 0:
         status["status"] = "error"
         status["stderr"] = res.stderr[-2000:]
+        if "used to build golangci-lint is lower" in res.stderr:
+            status["hint"] = ("golangci-lint was built with an older Go than the module "
+                              f"needs; rebuild it with yours: `{GOLANGCI_INSTALL}`")
     try:
         data = json.loads(out.read_text(encoding="utf-8"))
     except (OSError, ValueError):
@@ -918,10 +988,13 @@ def cmd_prepare(args) -> None:
     stamp = dt.datetime.now().strftime("%Y%m%d-%H%M%S")
     label = guides_label(guides)
     base_dir = Path(args.out).resolve() if args.out else root / ".go-style"
+    if not args.out:
+        for p in (base_dir, base_dir / "runs", base_dir / ".gitignore"):
+            refuse_link(p)
     base_dir.mkdir(parents=True, exist_ok=True)
-    gi = base_dir / ".gitignore"
-    if not args.out and not gi.exists():
-        gi.write_text("# Created by the go-style skills: ignore everything here.\n*\n")
+    if not args.out:
+        write_new(base_dir / ".gitignore",
+                  "# Created by the go-style skills: ignore everything here.\n*\n")
     run_dir = base_dir / "runs" / f"{stamp}-{label}"
     n = 1
     while run_dir.exists():  # two runs in the same second
@@ -958,7 +1031,7 @@ def cmd_prepare(args) -> None:
             path = Path(path).relative_to(root).as_posix()
         linter, text = it.get("FromLinter", ""), it.get("Text", "")
         if linter == "typecheck":
-            build_errors.append(f"{path}:{pos.get('Line')}: {text.strip()[:300]}")
+            build_errors.append(f"{path}:{pos.get('Line')}: {norm_ws(text)[:300]}")
             continue
         if path not in scope_paths:
             continue
@@ -975,7 +1048,7 @@ def cmd_prepare(args) -> None:
                     elsewhere[r.guide] += 1
                 top = other[0]  # highest-priority guide first
                 other_issues.append({"tool": linter, "file": path, "line": line,
-                                     "message": text.strip(), "rule": top.id,
+                                     "message": norm_ws(text), "rule": top.id,
                                      "title": top.title, "url": top.url,
                                      "guide": top.guide})
             else:
@@ -984,7 +1057,7 @@ def cmd_prepare(args) -> None:
         for r in hits:
             mapped.append({"source": "lint", "tool": linter, "check": check,
                            "rule": r.id, "file": path, "line": line,
-                           "col": int(pos.get("Column") or 0), "message": text.strip(),
+                           "col": int(pos.get("Column") or 0), "message": norm_ws(text),
                            "snippet": ((it.get("SourceLines") or [""])[0]).strip()})
     with (run_dir / "lint.jsonl").open("w", encoding="utf-8") as f:
         for m in mapped:
@@ -1071,7 +1144,7 @@ def other_guides_text(counts: dict, total: int | None = None) -> str:
     parts = [f"{GUIDES[g].short} {n}" for g, n in
              sorted(counts.items(), key=lambda kv: GUIDES[kv[0]].priority)]
     n = total if total is not None else sum(counts.values())
-    return f"{n} (rules in {', '.join(parts)}); run /go-style to include them"
+    return f"{n} (rules in {', '.join(parts)}); the all-guides go-style skill includes them"
 
 
 def in_ranges(line: int, ranges, slack: int) -> bool:
@@ -1133,6 +1206,8 @@ def print_prepare_summary(run: dict, mapped: list, rules: list[Rule]) -> None:
     else:
         print(f"golangci-lint: {lint['status'].upper()}"
               + (f" — {lint.get('stderr', '').strip()[:300]}" if lint.get("stderr") else ""))
+        if lint.get("hint"):
+            print(f"  hint: {lint['hint']}")
     if run.get("lint_other_guides"):
         print("more linter issues under other guides (not in this report): " +
               other_guides_text(run["lint_other_guides"], run.get("lint_other_total")))
@@ -1141,6 +1216,9 @@ def print_prepare_summary(run: dict, mapped: list, rules: list[Rule]) -> None:
               "build, type-aware checks are incomplete (see run.json build_errors)")
     if run["outline_error"]:
         print(f"WARNING: {run['outline_error']}")
+    if run["package_errors"]:
+        print(f"WARNING: {len(run['package_errors'])} packages or files with problems "
+              f"(run.json package_errors), first: {run['package_errors'][0][:200]}")
     reviewed = sum(1 for r in rules if r.check != "lint")
     print(f"rules: {len(rules)} ({reviewed} need review); "
           f"left out (contradict a higher-priority guide): {len(run['dropped_rules'])}")
@@ -1214,17 +1292,59 @@ def verify_location(root: Path, f: Finding, cache: dict) -> bool:
     return False
 
 
+def finding_records(text: str, name: str, rejected: list) -> list[tuple[int, dict]]:
+    """Returns the findings in a reviewer's output as (line number, object).
+
+    The file should hold one JSON object per line. A reviewer that wrote one
+    JSON array instead, or put the lines into a Markdown code fence, is read
+    all the same; what is no JSON object goes to rejected, so that one bad
+    line costs one finding and not the report."""
+    try:
+        whole = json.loads(text)
+    except ValueError:
+        whole = None
+    records = []
+
+    def add(n, d):
+        if isinstance(d, dict):
+            records.append((n, d))
+        else:
+            rejected.append(f"{name}:{n}: not a JSON object")
+
+    if isinstance(whole, list):
+        for n, d in enumerate(whole, 1):
+            add(n, d)
+        return records
+    for n, line in enumerate(text.splitlines(), 1):
+        line = line.strip()
+        if not line or line.startswith("```"):
+            continue
+        try:
+            add(n, json.loads(line))
+        except ValueError:
+            rejected.append(f"{name}:{n}: not JSON")
+    return records
+
+
+def line_numbers(value) -> list[int]:
+    """Returns the line numbers in value, a list a reviewer wrote; what is no
+    positive number is left out."""
+    out = []
+    for x in value if isinstance(value, list) else []:
+        try:
+            n = int(x)
+        except (TypeError, ValueError):
+            continue
+        if n > 0:
+            out.append(n)
+    return out
+
+
 def load_review_findings(run: dict, known: dict, rejected: list) -> list[Finding]:
     out = []
     for path in sorted(Path(run["run_dir"], "findings").glob("*.jsonl")):
-        for n, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-            if not line.strip():
-                continue
-            try:
-                d = json.loads(line)
-            except ValueError:
-                rejected.append(f"{path.name}:{n}: not JSON")
-                continue
+        text = path.read_text(encoding="utf-8", errors="replace")
+        for n, d in finding_records(text, path.name, rejected):
             rule = str(d.get("rule", "")).strip()
             if rule not in known:
                 # Accept a bare anchor when it names exactly one known rule.
@@ -1234,9 +1354,18 @@ def load_review_findings(run: dict, known: dict, rejected: list) -> list[Finding
                     continue
                 rule = cands[0]
             file = str(d.get("file", "")).replace("\\", "/")
-            if file.startswith(run["root"]):
-                file = file[len(run["root"]):].lstrip("/")
-            file = file[2:] if file.startswith("./") else file
+            root = run["root"].rstrip("/") + "/"
+            if file.startswith(root):
+                file = file[len(root):]
+            file = posixpath.normpath(file) if file else ""
+            if UNSAFE_NAME.search(file):
+                rejected.append(f"{path.name}:{n}: file name with quote, shell or "
+                                "control characters")
+                continue
+            if file.startswith("/") or file == ".." or file.startswith("../"):
+                # The report quotes the file, so it reads nothing outside the module.
+                rejected.append(f"{path.name}:{n}: file outside the module: {file[:80]}")
+                continue
             try:
                 line_no = int(d.get("line") or 0)
             except (TypeError, ValueError):
@@ -1246,18 +1375,22 @@ def load_review_findings(run: dict, known: dict, rejected: list) -> list[Finding
                 sev = "lower:" + sev  # without bug=true a severity may only lower
             out.append(Finding(
                 source="review", tool="review", rule=rule, file=file, line=line_no,
-                message=str(d.get("message", "")).strip(),
-                snippet=str(d.get("snippet", "")), fix=str(d.get("fix", "")).strip(),
+                message=shorten(str(d.get("message", "")), 700),
+                snippet=str(d.get("snippet", "")),
+                fix=shorten(str(d.get("fix", "")), 400),
                 confidence=str(d.get("confidence", "")), severity=sev,
-                also_lines=[int(x) for x in d.get("also_lines") or []
-                            if str(x).isdigit()],
+                also_lines=line_numbers(d.get("also_lines")),
                 task=path.stem))
     return out
 
 
 def cmd_report(args) -> None:
     run_dir = Path(args.run).resolve() if args.run else latest_run()
+    if not (run_dir / "run.json").exists():
+        die(f"{run_dir} is not a run directory (no run.json): pass the directory "
+            "`prepare` printed, or run `prepare` again")
     run = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
+    run["run_dir"] = str(run_dir)  # where it is, whatever run.json says
     root = Path(run["root"])
     rules = {r["id"]: r for r in json.loads((run_dir / "rules.json").read_text())}
     guides = run["guides"]
@@ -1309,7 +1442,8 @@ def cmd_report(args) -> None:
     now = dt.datetime.now().astimezone()
     label = guides_label(guides)
     if args.output:
-        out = Path(args.output).resolve()
+        # Not resolved: a symbolic link at the path is replaced, not followed.
+        out = Path(os.path.abspath(args.output))
     else:
         try:
             out = report_path(store_dir(), run["module"], label,
@@ -1336,8 +1470,8 @@ def cmd_report(args) -> None:
     }, indent=1)
     try:
         out.parent.mkdir(parents=True, exist_ok=True)
-        out.write_text(text, encoding="utf-8")
-        js.write_text(data, encoding="utf-8")
+        write_replacing(out, text)
+        write_replacing(js, data)
     except OSError as e:
         die(f"cannot write the report to {out.parent}: {e.strerror or e}; "
             "set GO_STYLE_HOME to a writable directory or pass --output")
@@ -1507,10 +1641,26 @@ def prio_of(base_id: str) -> int:
 
 def latest_run() -> Path:
     root, _ = module_root(Path.cwd())
-    runs = sorted((root / ".go-style" / "runs").glob("*"))
+    # A prepare that died early leaves a directory without run.json. The latest
+    # run is the one written last, not the one with the latest name: a
+    # repository may ship a run directory, with any name.
+    runs = [p for p in (root / ".go-style" / "runs").glob("*")
+            if not p.is_symlink() and (p / "run.json").is_file()]
     if not runs:
         die("no runs found; run `prepare` first or pass --run")
-    return runs[-1]
+    return max(runs, key=lambda p: ((p / "run.json").stat().st_mtime, p.name))
+
+
+def md_text(s: str) -> str:
+    """Returns s for a line of the report. A message quotes the code under
+    review, or was written by a reviewer who read it: it must not become
+    markup of its own, an HTML tag or a link."""
+    return re.sub(r"<(?=[A-Za-z/!?])", "&lt;", s).replace("](", "]\\(")
+
+
+def code_span(s: str) -> str:
+    """Returns s as a Markdown code span that s cannot end early."""
+    return "`" + s.replace("`", "'") + "`"
 
 
 def md_link(rule: dict) -> str:
@@ -1549,10 +1699,14 @@ def render_report(run, rules, findings, unverified, skipped, rejected) -> str:
     must = [f for f in findings if f.severity == "must"]
     if must:
         out += ["### Must fix", ""]
-        out += [f"- `{f.file}:{f.line}` — {f.message} ({md_link(rules[f.rule])})"
-                + optional_mark(rules[f.rule]) for f in must[:30]]
-        if len(must) > 30:
-            out.append(f"- … and {len(must) - 30} more below")
+        shown = spread(must, 30, per_rule=5)
+        out += [f"- `{f.file}:{f.line}` — {md_text(f.message)} ({md_link(rules[f.rule])})"
+                + optional_mark(rules[f.rule])
+                + (f" — and {more} more of this rule below" if more else "")
+                for f, more in shown]
+        rest = len({f.rule for f in must}) - len({f.rule for f, _ in shown})
+        if rest > 0:
+            out.append(f"- … and must findings of {rest} more rules below")
         out.append("")
 
     out += ["## Findings by guide section", ""]
@@ -1598,12 +1752,14 @@ def render_report(run, rules, findings, unverified, skipped, rejected) -> str:
 
     notes = []
     if run["lint"]["status"] != "ok":
+        hint = run["lint"].get("hint")
         notes.append(f"golangci-lint did not run cleanly ({run['lint']['status']}); "
-                     "mechanical rules are missing from this report.")
+                     "mechanical rules are missing from this report."
+                     + (f" To fix: {hint}." if hint else ""))
     if run["build_errors"]:
         notes.append(f"{len(run['build_errors'])} type-check errors: the code does not "
                      "build, so type-aware linters saw only part of it. First: "
-                     f"`{run['build_errors'][0][:200]}`")
+                     f"{code_span(run['build_errors'][0][:200])}")
     if run.get("outline_error"):
         notes.append(run["outline_error"])
     missing = [t["id"] for t in run["tasks"] if not Path(t["output"]).exists()]
@@ -1630,7 +1786,7 @@ def render_report(run, rules, findings, unverified, skipped, rejected) -> str:
         out += ["## Also found by linters under other guides", "",
                 "Not part of this guide, listed so that real bugs are not lost; "
                 "`/go-style` reviews them in context.", ""]
-        out += [f"- `{o['file']}:{o['line']}` — {o['message']} "
+        out += [f"- `{o['file']}:{o['line']}` — {md_text(o['message'])} "
                 f"([{GUIDES[o['guide']].short} › {o['title']}]({o['url']}))"
                 for o in other[:40]]
         if len(other) > 40:
@@ -1638,7 +1794,7 @@ def render_report(run, rules, findings, unverified, skipped, rejected) -> str:
         out.append("")
     if skipped:
         out += ["## Not reported: a higher-priority guide disagrees", ""]
-        out += [f"- `{f.file}:{f.line}` — {f.message} ({md_link(rules[f.rule])}; "
+        out += [f"- `{f.file}:{f.line}` — {md_text(f.message)} ({md_link(rules[f.rule])}; "
                 f"contradicts {w})" for f, w in skipped]
         out.append("")
     out += ["---", "",
@@ -1679,11 +1835,11 @@ def finding_line(f: Finding, rules: dict) -> str:
     src = f.tool if f.source == "lint" else "review"
     if f.confidence and f.source == "review":
         src += f", {f.confidence}"
-    line = f"- {loc} — {f.message} _({src})_"
+    line = f"- {loc} — {md_text(f.message)} _({src})_"
     if not f.verified and f.why_unverified:
         line += f" — **{f.why_unverified}**"
     if f.fix:
-        line += f"\n  - fix: `{shorten(f.fix, 200)}`"
+        line += f"\n  - fix: {code_span(shorten(f.fix, 200))}"
     if f.see_also:
         links = ", ".join(f"[{GUIDES[rules[s]['guide']].short}]({rules[s]['url']})"
                           for s in f.see_also)
@@ -1699,6 +1855,25 @@ def shorten(s: str, n: int) -> str:
     if " " in cut[n // 2:]:
         cut = cut[: cut.rindex(" ")]
     return cut.rstrip(",;:") + "…"
+
+
+def spread(findings: list[Finding], limit: int, per_rule: int = 3):
+    """Picks up to limit findings in their order, at most per_rule of one rule,
+    so that a rule broken in every file does not crowd the others out of a
+    short list. Returns (finding, n) pairs; n is how many findings of the rule
+    were left out, on the last one picked of that rule, and 0 otherwise."""
+    total = collections.Counter(f.rule for f in findings)
+    picked: list[Finding] = []
+    taken: collections.Counter = collections.Counter()
+    for f in findings:
+        if len(picked) == limit:
+            break
+        if taken[f.rule] < per_rule:
+            taken[f.rule] += 1
+            picked.append(f)
+    last = {f.rule: i for i, f in enumerate(picked)}
+    return [(f, total[f.rule] - taken[f.rule] if last[f.rule] == i else 0)
+            for i, f in enumerate(picked)]
 
 
 def print_report_summary(run, rules, findings, unverified, skipped, rejected, out):
@@ -1719,13 +1894,15 @@ def print_report_summary(run, rules, findings, unverified, skipped, rejected, ou
                     key=lambda f: (f.source != "review", f.confidence != "high",
                                    rules[f.rule]["order"]))
     print("top findings for the answer:")
-    for f in must[:15] + should[:12]:
-        r = rules[f.rule]
-        print(f"  [{f.severity}] {f.file}:{f.line} — {shorten(f.message, 170)} — "
-              f"[{GUIDES[r['guide']].short} › {r['title']}]({r['url']})"
-              + optional_mark(r))
-    if len(must) > 15:
-        print(f"  … {len(must) - 15} more must findings in the report")
+    for group, limit in ((must, 15), (should, 12)):
+        for f, more in spread(group, limit):
+            r = rules[f.rule]
+            print(f"  [{f.severity}] {f.file}:{f.line} — {shorten(f.message, 170)} — "
+                  f"[{GUIDES[r['guide']].short} › {r['title']}]({r['url']})"
+                  + optional_mark(r) + (f" (+{more} more of this rule)" if more else ""))
+    rest = len({f.rule for f in must}) - len({f.rule for f, _ in spread(must, 15)})
+    if rest > 0:
+        print(f"  … must findings of {rest} more rules in the report")
     other = load_other_issues(run["run_dir"]) if len(run["guides"]) == 1 else []
     if other:
         print(f"linter issues under other guides (listed at the end of the report): "

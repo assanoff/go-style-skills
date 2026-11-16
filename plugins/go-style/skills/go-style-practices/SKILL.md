@@ -19,6 +19,10 @@ Read `${CLAUDE_SKILL_DIR}/../go-style/WORKFLOW.md` and follow it with
 `ENGINE=${CLAUDE_SKILL_DIR}/../go-style`, `--guides google-practices` and the
 user's arguments: `$ARGUMENTS`
 
+(An agent that does not expand placeholders leaves `${…}` and `$…` names in
+the lines above: the first stands for the directory of this SKILL.md, the
+second for the arguments in the user's request.)
+
 Rule catalog: `${CLAUDE_SKILL_DIR}/../go-style/rules/google-practices/`
 (naming, packages, errors, documentation, declarations, api-design, testing,
 strings).

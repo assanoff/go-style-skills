@@ -36,13 +36,15 @@ under `/plugin` → Marketplaces.
 
 ### Requirements
 
+- macOS or Linux (on Windows: WSL)
 - `go` and the Go module you want to review
 - `python3` 3.9 or newer (standard library only)
 - [golangci-lint](https://golangci-lint.run) **v2.14 or newer** — older releases
   reject the config or cannot load packages of Go 1.27. Install it with your own
   Go, so it always supports your Go version:
   `go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@latest`.
-  Without golangci-lint the run continues with the review only.
+  Without golangci-lint, or with one that is too old, the run continues with
+  the review only and says how to fix it.
 - `git` for `--diff`, `--staged` and `--unstaged`
 
 ## Skills
@@ -125,6 +127,8 @@ task files                findings → JSONL                    summary for the 
   decided.
 - A reviewer finding is kept only if the code it quotes is found on (or next to)
   the reported line.
+- Reviewers read the code and never build or run it: the plugin's
+  `go-style:reviewer` agent has no shell.
 - Links are built from rule ids (`<guide>:<anchor>`), never written by the model.
 - In a combined run a concern covered by several guides is reported once, under
   the highest-priority guide (Google Guide, Decisions, Best Practices, Effective
@@ -135,12 +139,29 @@ Details and the reasoning behind every choice: [docs/research.md](docs/research.
 What is covered by what: [docs/coverage.md](docs/coverage.md). Planned analyzers
 for rules no linter checks yet: [docs/linters-plan.md](docs/linters-plan.md).
 
+## What a run touches
+
+The skills run `go list`, `git` (read-only commands), `golangci-lint` with the
+plugin's own config — a `.golangci.yml` in the module is not loaded — and
+`go run` on the plugin's `outline.go`. They write the working files of a run to
+`<module>/.go-style/` and the report to the store, nothing else, and use no
+network themselves; `go` may download modules the build needs, as it does for
+`go build`. Linting type-checks the code and does not execute it. On a
+repository you do not trust, read the report as data: its messages quote that
+repository.
+
 ## Without the plugin
 
 The six skill directories in [`plugins/go-style/skills/`](plugins/go-style/skills/)
 also work as plain skills. Copy or symlink **all six** into `~/.claude/skills/` —
 the per-guide skills use the engine in `go-style/` next to them — and call them
 without the prefix (`/go-style`, `/go-style-uber`).
+
+Where a skill is taken as one zip (a skill marketplace, an upload),
+`tools/package` builds `dist/go-style-<version>.zip`: the combined skill as a
+single self-contained directory, with the license files it must travel with.
+It has no per-guide skills; `--guides uber`, or "check it against the Uber
+guide", selects one.
 
 Other agents that read `~/.agents/skills` can load the same directories, but the
 skills are written for Claude Code (`${CLAUDE_SKILL_DIR}`, `$ARGUMENTS`,
@@ -166,10 +187,11 @@ plugins/go-style/                   the plugin users install
     agents/reviewer.md              reviewer subagent instructions (template)
     rules/<guide>/*.md              rule catalogs, one file per topic; rules/FORMAT.md
   skills/go-style-{guide,decisions,practices,effective,uber}/SKILL.md   thin entry points
+  agents/reviewer.md                the go-style:reviewer agent: read, search, write findings; no shell
   LICENSE  NOTICE  LICENSES/        copies of the files at the repository root
 docs/                               research, coverage matrix, analyzer plan
 evals/                              fixture module with seeded problems, expected.json, score.py, tests
-tools/                              check-fixture, refresh-anchors, anchors.py
+tools/                              check-fixture, refresh-anchors, anchors.py, package
 ```
 
 ## Development
@@ -183,6 +205,7 @@ tools/check-fixture                                     # linter-only run on the
 python3 $E/scripts/gostyle.py coverage > docs/coverage.md
 tools/refresh-anchors --dry                             # did a guide change its headings?
 claude plugin validate . --strict                       # marketplace and plugin manifests
+tools/package                                           # the standalone skill zip, in dist/
 ```
 
 CI ([`.github/workflows/validate.yml`](.github/workflows/validate.yml)) runs all
@@ -206,7 +229,9 @@ changes.
 ## License
 
 MIT, see [LICENSE](LICENSE). The rule catalogs are adapted from the style
-guides — Google Go Style Guide (CC BY 3.0), Effective Go (CC BY 4.0) and the
-Uber Go Style Guide (Apache-2.0); attribution and details are in
-[NOTICE](NOTICE). This project is not affiliated with or endorsed by Google,
-Uber or the Go team.
+guides — Google Go Style Guide (CC BY 3.0, its code samples Apache-2.0),
+Effective Go (CC BY 4.0, its code under the Go BSD license) and the Uber Go
+Style Guide (Apache-2.0) — and stay under those licenses; attribution and
+details are in [NOTICE](NOTICE), the license texts in [LICENSES](LICENSES).
+Pass the skills on with these files, as the plugin and `tools/package` do. This
+project is not affiliated with or endorsed by Google, Uber or the Go team.

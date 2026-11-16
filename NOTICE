@@ -9,9 +9,9 @@ Third-party material
 --------------------
 
 The rule catalogs of the go-style skill (skills/go-style/rules/ in the go-style
-plugin; plugins/go-style/skills/go-style/rules/ in the repository) are adapted
-from the style guides listed below, and their _anchors.tsv files list the
-guides' section headings. The material has been changed: guide sections are
+plugin; plugins/go-style/skills/go-style/rules/ in the repository; rules/ in a
+standalone copy of the skill) are adapted from the style guides listed below,
+and their _anchors.tsv files list the guides' section headings. The material has been changed: guide sections are
 split into separate rules, summarized and paraphrased, and extended with
 severities, linter mappings, review hints, exceptions and examples. The skill
 instructions and the documentation also name guide sections and quote short
@@ -25,6 +25,8 @@ The authors of these guides do not sponsor or endorse this project.
    Author:     Google
    License:    Creative Commons Attribution 3.0 Unported (CC BY 3.0)
                https://creativecommons.org/licenses/by/3.0/
+               (code samples in the guides are under the Apache License 2.0;
+               full text in LICENSES/Apache-2.0.txt)
    Adapted in: rules/google-guide/, rules/google-decisions/,
                rules/google-practices/
 
@@ -33,8 +35,9 @@ The authors of these guides do not sponsor or endorse this project.
    Author:     The Go Authors
    License:    Creative Commons Attribution 4.0 International (CC BY 4.0)
                https://creativecommons.org/licenses/by/4.0/
-               (code on go.dev is under the Go BSD license,
-               https://go.dev/LICENSE)
+               (code in the document is under the Go BSD license,
+               Copyright 2009 The Go Authors; full text in
+               LICENSES/BSD-3-Clause-Go.txt, also at https://go.dev/LICENSE)
    Adapted in: rules/effective/
 
 3. Uber Go Style Guide

@@ -26,6 +26,10 @@ Read `${CLAUDE_SKILL_DIR}/../go-style/WORKFLOW.md` and follow it with
 `ENGINE=${CLAUDE_SKILL_DIR}/../go-style`, `--guides uber` and the user's
 arguments: `$ARGUMENTS`
 
+(An agent that does not expand placeholders leaves `${…}` and `$…` names in
+the lines above: the first stands for the directory of this SKILL.md, the
+second for the arguments in the user's request.)
+
 Rule catalog: `${CLAUDE_SKILL_DIR}/../go-style/rules/uber/`
 (guidelines, errors, globals and lifecycle, performance, style, patterns).
 

@@ -26,12 +26,13 @@ guide is silent.
   that breaks other languages' conventions: an exported constant is `MaxLength` (not
   `MAX_LENGTH`), an unexported one `maxLength` (not `max_length`). Local variables count
   as unexported, so they start lowercase.
-- **look for:** capitalized locals declared in function bodies (captLocal flags them only
-  with `paramsOnly: false`); all-caps multi-word names without underscores (`MAXLENGTH`),
-  which revive misses.
+- **look for:** all-caps multi-word names without underscores (`MAXLENGTH`), which revive
+  misses.
 - **skip:** google-decisions:underscores exceptions — Test, Benchmark and Example function
   names in `_test.go` files, packages imported only by generated code, low-level OS/cgo
-  identifiers mirroring `syscall`; file names; names revive or captLocal already report.
+  identifiers mirroring `syscall`; file names; initialisms, which keep one case
+  (`XMLAPI`, google-decisions:initialisms); names with underscores and capitalized
+  parameters or locals — revive and captLocal report them.
 - **example:** `const MAX_LENGTH = 10` -> `const MaxLength = 10`
 
 ### google-guide:line-length — Line length
@@ -61,7 +62,7 @@ guide is silent.
 - **example:** `func (p *Project) ProjectName() string` -> `func (p *Project) Name() string`
 
 ### google-guide:local-consistency — Local consistency
-- **meta:** severity=should · scope=repo · check=llm
+- **meta:** severity=should · scope=body · check=llm
 - **rule:** Where the guide is silent, authors may choose, unless nearby code (file or
   package, sometimes team or directory) has a consistent stance — then follow it. Valid
   local choices: `%s` vs `%v` for errors, buffered channels instead of mutexes; invalid:

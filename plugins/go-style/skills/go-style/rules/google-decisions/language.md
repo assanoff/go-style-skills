@@ -101,9 +101,11 @@ Language-level decisions: composite literal layout, nil slices, where not to bre
 - **rule:** Declare an empty local slice as nil (`var t []string`), especially when it may become
   a return value, rather than `[]string{}` or `make([]string, 0)`: `len`, `cap`, `range` and
   `append` all work on nil slices, and nil reduces the risk of bugs in callers.
-- **skip:** reported by revive enforce-slice-style (style `nil`), which also flags empty
-  literals in returns and arguments but not `make([]T, 0, n)`; dismiss hits where an external
-  format needs a non-nil empty slice (JSON `[]` vs `null`).
+- **skip:** reported by revive enforce-slice-style (style `nil`) for declared variables and
+  returns; empty slices in struct fields, arguments and elements are left out by the
+  linter config, as is `make([]T, 0, n)`.
+- **note:** a hit is wrong where an external format needs a non-nil empty slice (JSON `[]`
+  vs `null`); the linter cannot tell.
 - **example:** `t := []string{}` -> `var t []string`
 
 ### google-decisions:nil-slices/api — Nil slices: APIs and emptiness checks
@@ -282,7 +284,9 @@ Language-level decisions: composite literal layout, nil slices, where not to bre
   `XRepository` interfaces mirroring a struct's methods; interfaces over generated RPC
   clients; exported fakes in non-test packages; undocumented interface contracts.
 - **skip:** interfaces unused in their own package (iface unused) and ones with over 10
-  methods (interfacebloat) are reported by linters; interfaces that are the product.
+  methods (interfacebloat) are reported by linters; interfaces that are the product; test
+  doubles in a package dedicated to them (like `spannertest`), which the guide accepts
+  where testing against the real implementation is impractical.
 - **example:** exported `UserService` beside its only implementation -> consumer-side interface
 
 ### google-decisions:interfaces/return-concrete — Interfaces: accept interfaces, return concrete types

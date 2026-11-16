@@ -29,6 +29,8 @@ jobs:
           cmp LICENSE plugins/go-style/LICENSE
           cmp NOTICE plugins/go-style/NOTICE
           diff -r LICENSES plugins/go-style/LICENSES
+      - name: Build the standalone skill zip
+        run: tools/package
 
   scripts:
     name: rule catalogs and unit tests

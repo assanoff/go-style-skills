@@ -304,7 +304,7 @@ initialize structs, slices, maps and format strings.
 - **example:** `sptr := new(T); sptr.Name = "bar"` -> `sptr := &T{Name: "bar"}`
 
 ### uber:initializing-maps — Initializing Maps
-- **meta:** severity=should · scope=body · check=lint+llm · lint=revive:enforce-map-style · custom=make-then-fixed-assign · overlaps=google-practices:vardeclcomposite
+- **meta:** severity=should · scope=body · check=lint+llm · lint=revive:enforce-map-style · custom=make-then-fixed-assign · overlaps=google-practices:vardeclcomposite · conflicts=google-decisions:non-decisions
 - **rule:** Use `make(…)` for empty maps and maps populated programmatically (it looks
   different from a nil-map declaration and makes a later size hint easy); use a map
   literal when the map holds a fixed set of elements known at initialization.

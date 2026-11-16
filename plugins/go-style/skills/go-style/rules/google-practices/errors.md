@@ -33,8 +33,9 @@ How to structure, annotate, wrap and log errors, and when to stop the program or
   `errors.Is`/`errors.As` or status codes instead.
 - **look for:** `err.Error()` passed to `strings.Contains`/`HasPrefix`/`regexp.MatchString`,
   compared with `==`, or used as a `switch` tag; the same with `fmt.Sprint(err)`.
-- **skip:** test code — google-decisions:test-error-semantics allows checking message properties
-  there.
+- **skip:** a test that checks a property of the message (it names the bad input) and not
+  which error it is — google-decisions:test-error-semantics allows that; a test that tells
+  error conditions apart by their text is in scope like production code.
 - **example:** `if strings.Contains(err.Error(), "duplicate")` -> `if errors.Is(err, ErrDuplicate)`
 
 ### google-practices:error-extra-info — Add only new information to errors
@@ -44,7 +45,10 @@ How to structure, annotate, wrap and log errors, and when to stop the program or
   errors already include the path). Don't add an annotation that only says something failed —
   return the error as is.
 - **look for:** wrappers restating the callee's details (`fmt.Errorf("could not open %s: %v",
-  name, err)` around an `os.Open` error); empty annotations (`"failed: %v"`, `"error: %w"`).
+  name, err)` around an `os.Open` error); empty annotations (`"failed: %v"`, `"error: %w"`);
+  stop words that add nothing and pile up in a chain ("failed to", "couldn't", "unable to");
+  several returns of one function with the same annotation, so the message does not tell
+  which step failed.
 - **skip:** annotations adding the operation or inputs the callee does not know.
 - **example:** `return fmt.Errorf("failed: %v", err)` -> `return err`
 
@@ -76,8 +80,10 @@ How to structure, annotate, wrap and log errors, and when to stop the program or
 - **rule:** When wrapping a sentinel error — one that categorizes the failure, such as
   `os.ErrInvalid` or a package-level `ErrParse` — place its `%w` at the beginning
   (`"%w: details"`) so the category is read first instead of being buried in the details.
-- **look for:** sentinels wrapped last: `fmt.Errorf("...: %v: %w", err, ErrX)`,
-  `fmt.Errorf("lookup %q: %w", key, ErrNotFound)`.
+- **look for:** a sentinel wrapped after the details of the cause, where it is read last:
+  `fmt.Errorf("...: %v: %w", err, ErrX)`.
+- **skip:** a sentinel that is the only error in the message (`"lookup %q: %w", key,
+  ErrNotFound`) — that is the `"...: %w"` form of error-percent-w.
 - **note:** the guide's examples format the underlying cause with `%v` after the sentinel; Go 1.20+
   also allows a second `%w` (`"%w: ...: %w"`), which the guide does not discuss.
 - **example:** `fmt.Errorf("bad header: %v: %w", err, ErrParse)` -> `fmt.Errorf("%w: bad header: %v", ErrParse, err)`

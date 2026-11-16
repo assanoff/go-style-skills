@@ -29,7 +29,7 @@ channel direction.
 - **example:** `coords := Point{X: 0, Y: 0}; json.Unmarshal(b, &coords)` -> `var coords Point`
 
 ### google-practices:vardeclzero/uncopyable — Declaring variables with zero values: uncopyable fields
-- **meta:** severity=consider · scope=decl · check=lint+llm · lint=govet:copylocks · overlaps=google-decisions:copying
+- **meta:** severity=should · scope=decl · check=lint+llm · lint=govet:copylocks · overlaps=google-decisions:copying
 - **rule:** A field that must not be copied (a `sync.Mutex`, a `bytes.Buffer`) can be a value
   field that relies on its zero value instead of a pointer; the containing type is then
   passed around as a pointer and its methods take pointer receivers. Local variables of such

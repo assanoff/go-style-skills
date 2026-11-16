@@ -46,9 +46,12 @@ deliberately, avoiding in-band error values, and keeping the normal path out of 
   `(*bytes.Buffer).Write`, documented never to fail), a comment should explain why.
 - **look for:** errors assigned to `_` without a justifying comment (`_ = f.Close()`,
   `n, _ := w.Write(b)`) — errcheck ignores blank assignments; errors that are checked but then
-  dropped (empty `if err != nil {}`, or the code carries on as if the call succeeded).
-- **skip:** unchecked calls errcheck reports; `return nil` inside `if err != nil` (nilerr);
-  commented discards of errors documented never to occur.
+  dropped (empty `if err != nil {}`, or the code carries on as if the call succeeded);
+  unchecked `Close`, `Flush` or `Sync` of a file or writer the code wrote to, and unchecked
+  `fmt.Fprint*` to a connection or file — the linter config leaves this group to you.
+- **skip:** other unchecked calls — errcheck reports them; `return nil` inside
+  `if err != nil` (nilerr); commented discards of errors documented never to occur; a
+  deferred `Close` of something only read; printing to stdout or stderr.
 - **example:** `n, _ := b.Write(p)` -> `n, _ := b.Write(p) // never returns a non-nil error`
 
 ### google-decisions:in-band-errors — In-band errors
